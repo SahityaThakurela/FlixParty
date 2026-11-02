@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlixParty</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-box">
+        <div class="logo-icon">▶</div>
+        <h1 class="logo-title">FlixParty</h1>
+      </div>
+      <a href="#" id="settingsLink" class="settings-link" title="Audio/Video Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </a>
+    </header>
+
+    <!-- Not on Netflix Warning (if applicable) -->
+    <div id="notNetflixNotice" class="banner warn" style="display: none;">
+      <p>Navigate to <strong>Netflix</strong> and open any show or movie to use FlixParty.</p>
+      <button id="openNetflixBtn" class="btn btn-secondary">Open Netflix</button>
+    </div>
+
+    <!-- Active Party State -->
+    <div id="activePartyView" style="display: none;">
+      <div class="active-card">
+        <div class="badge-live">● WATCH PARTY ACTIVE</div>
+        <div class="room-info">
+          <span class="room-label">Room Code:</span>
+          <span class="room-code" id="activeRoomCode">FLIX-0000</span>
+        </div>
+        <div class="btn-group">
+          <button id="copyInviteBtn" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Copy Invite Link
+          </button>
+          <button id="toggleSidebarBtn" class="btn btn-secondary">Toggle Sidebar</button>
+        </div>
+        <button id="leavePartyBtn" class="btn btn-danger">Leave Party</button>
+      </div>
+    </div>
+
+    <!-- Inactive State (Create or Join) -->
+    <div id="inactivePartyView">
+      <!-- Nickname Field -->
+      <div class="input-group">
+        <label for="usernameInput">Your Nickname</label>
+        <input type="text" id="usernameInput" placeholder="e.g. Sahitya" maxlength="20">
+      </div>
+
+      <!-- Start Party Section -->
+      <div class="action-card">
+        <h3>Host a Watch Party</h3>
+        <p class="subtitle">Invite your friend to watch together with video, voice, and instant sync.</p>
+        <button id="startPartyBtn" class="btn btn-primary btn-block">Start the Party</button>
+      </div>
+
+      <div class="divider"><span>OR</span></div>
+
+      <!-- Join Party Section -->
+      <div class="action-card">
+        <h3>Join a Friend's Party</h3>
+        <p class="subtitle">Enter the Room Code provided by your friend.</p>
+        <div class="join-row">
+          <input type="text" id="joinRoomInput" placeholder="e.g. FLIX-7492" maxlength="15">
+          <button id="joinPartyBtn" class="btn btn-secondary">Join</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span>Zero-Lag P2P Video & Playback Sync</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+

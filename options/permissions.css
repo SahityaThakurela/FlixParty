@@ -1,0 +1,258 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+  background-color: #121212;
+  color: #FFFFFF;
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+  min-height: 100vh;
+}
+
+.settings-wrapper {
+  max-width: 640px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Header */
+.settings-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  background: #E50914;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 16px;
+  color: #FFF;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #FFFFFF, #FF7B7B);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #888;
+}
+
+/* Main Cards */
+.settings-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: #1B1B1B;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+h2 {
+  font-size: 17px;
+  font-weight: 600;
+  color: #FFF;
+}
+
+.desc {
+  font-size: 13px;
+  color: #999;
+  line-height: 1.4;
+}
+
+/* Media Preview */
+.media-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.video-preview-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.video-preview-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #222;
+  color: #666;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.audio-meter-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meter-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #AAA;
+}
+
+.meter-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.meter-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: #10B981;
+  transition: width 0.08s ease;
+}
+
+.media-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Forms */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #DDD;
+}
+
+input[type="text"],
+select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: #FFF;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input[type="text"]:focus,
+select:focus {
+  border-color: #E50914;
+}
+
+select option {
+  background: #222;
+  color: #FFF;
+}
+
+.help {
+  font-size: 11px;
+  color: #777;
+}
+
+code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: monospace;
+  color: #FF7B7B;
+}
+
+.save-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.save-notice {
+  font-size: 13px;
+  color: #10B981;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.save-notice.show {
+  opacity: 1;
+}
+
+/* Buttons */
+.btn {
+  padding: 10px 18px;
+  border-radius: 6px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background: #E50914;
+  color: #FFF;
+}
+
+.btn-primary:hover {
+  background: #F40612;
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.4);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFF;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+

@@ -1,0 +1,63 @@
+{
+  "manifest_version": 3,
+  "name": "FlixParty - Netflix Watch Party with Video & Voice Call",
+  "version": "1.0.0",
+  "description": "Watch Netflix together in perfect sync with real-time video call, voice chat, and text. Zero-lag alternative to Teleparty.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
+    "default_title": "FlixParty"
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.netflix.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.netflix.com/*"],
+      "js": ["content/netflix-bridge.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.netflix.com/*"],
+      "js": [
+        "content/webrtc-manager.js",
+        "content/sidebar.js",
+        "content/content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/netflix-bridge.js",
+        "icons/*"
+      ],
+      "matches": ["*://*.netflix.com/*"]
+    }
+  ],
+  "options_ui": {
+    "page": "options/permissions.html",
+    "open_in_tab": true
+  }
+}
+

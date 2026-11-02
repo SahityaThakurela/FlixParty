@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlixParty - Settings & Audio/Video Test</title>
+  <link rel="stylesheet" href="permissions.css">
+</head>
+<body>
+  <div class="settings-wrapper">
+    <header class="settings-header">
+      <div class="brand">
+        <div class="logo-icon">▶</div>
+        <h1>FlixParty Settings</h1>
+      </div>
+      <p class="subtitle">Test your camera & microphone, configure your username, and set up connection preferences.</p>
+    </header>
+
+    <main class="settings-main">
+      <!-- Media Device Test Card -->
+      <section class="card">
+        <h2>Camera & Microphone Test</h2>
+        <p class="desc">Verify that your webcam and microphone are working properly before starting a watch party.</p>
+
+        <div class="media-preview-container">
+          <!-- Video Preview -->
+          <div class="video-preview-box">
+            <video id="previewVideo" autoplay playsinline muted></video>
+            <div id="videoPlaceholder" class="placeholder">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+              <span>Camera not started</span>
+            </div>
+          </div>
+
+          <!-- Audio Meter -->
+          <div class="audio-meter-box">
+            <div class="meter-label">
+              <span>Microphone Input Level:</span>
+              <strong id="dbLevel">0%</strong>
+            </div>
+            <div class="meter-bar-bg">
+              <div class="meter-bar-fill" id="meterFill"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="media-actions">
+          <button id="testMediaBtn" class="btn btn-primary">Start Camera & Mic Test</button>
+          <button id="stopMediaBtn" class="btn btn-secondary" style="display:none;">Stop Test</button>
+        </div>
+      </section>
+
+      <!-- Preferences Card -->
+      <section class="card">
+        <h2>Party Preferences</h2>
+        
+        <div class="form-group">
+          <label for="usernameInput">Display Nickname</label>
+          <input type="text" id="usernameInput" placeholder="Enter your nickname" maxlength="25">
+          <span class="help">Shown in video call tile and chat messages.</span>
+        </div>
+
+        <div class="form-group">
+          <label for="serverUrlInput">WebRTC Signaling Server URL</label>
+          <input type="text" id="serverUrlInput" placeholder="ws://localhost:3000">
+          <span class="help">Default is <code>ws://localhost:3000</code>. You can also point to your hosted WebSocket server on Render/Railway.</span>
+        </div>
+
+        <div class="form-group">
+          <label for="controlModeSelect">Default Playback Control</label>
+          <select id="controlModeSelect">
+            <option value="everyone">Everyone can control (Shared play/pause/seek)</option>
+            <option value="host_only">Host only control (Only party creator controls)</option>
+          </select>
+        </div>
+
+        <div class="save-row">
+          <button id="saveBtn" class="btn btn-primary">Save Settings</button>
+          <span id="saveNotice" class="save-notice">✓ Settings saved!</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="permissions.js"></script>
+</body>
+</html>
+

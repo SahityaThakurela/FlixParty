@@ -1,0 +1,13 @@
+{
+  "name": "flixparty-signaling-server",
+  "version": "1.0.0",
+  "description": "Zero-dependency WebRTC Signaling Server for FlixParty Netflix watch party extension",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["webrtc", "signaling", "netflix", "teleparty", "watch-party"],
+  "author": "",
+  "license": "MIT"
+}
+
