@@ -41,6 +41,26 @@
 
   loadSettings();
 
+  // Listen for settings changes (e.g. server URL updated in options)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local') {
+      if (changes.serverUrl && changes.serverUrl.newValue) {
+        serverUrl = changes.serverUrl.newValue;
+        console.log('[FlixParty] Server URL updated to:', serverUrl);
+        if (webrtcManager) {
+          webrtcManager.serverUrl = serverUrl;
+          if (isPartyActive && currentRoomId) {
+            sidebar?.addSystemLog(`Connecting to updated server: ${serverUrl}`);
+            webrtcManager.connectToSignaling(currentRoomId, isHost);
+          }
+        }
+      }
+      if (changes.username && changes.username.newValue) {
+        username = changes.username.newValue;
+      }
+    }
+  });
+
   // Ensure bridge script is active in MAIN world
   function ensureBridgeInjected() {
     if (document.getElementById('flixparty-bridge-script')) return;
