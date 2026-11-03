@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlixParty - Privacy Policy</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      max-width: 780px;
+      margin: 40px auto;
+      padding: 0 20px;
+      color: #222;
+      background: #fafafa;
+    }
+    h1, h2 { color: #E50914; }
+    .card {
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    footer { margin-top: 30px; font-size: 0.9em; color: #777; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Privacy Policy for FlixParty</h1>
+    <p><strong>Effective Date:</strong> November 3, 2026</p>
+
+    <p>FlixParty ("we", "our", or "the extension") is a browser extension designed to allow friends to watch Netflix and YouTube videos together in synchronized real-time playback with peer-to-peer audio, video, and text chat.</p>
+
+    <h2>1. Information We Do Not Collect</h2>
+    <p>FlixParty is built with a <strong>privacy-first, peer-to-peer architecture</strong>:</p>
+    <ul>
+      <li>We <strong>do not</strong> store, record, or track your browsing history or personal data.</li>
+      <li>We <strong>do not</strong> record or store your webcam video or microphone audio. Video and voice streams are transmitted directly between party participants via encrypted WebRTC peer-to-peer connections.</li>
+      <li>We <strong>do not</strong> collect or sell any personal information to third parties.</li>
+    </ul>
+
+    <h2>2. Local Storage Usage</h2>
+    <p>FlixParty stores only user configuration preferences locally on your browser using <code>chrome.storage.local</code>:</p>
+    <ul>
+      <li>Your chosen display nickname.</li>
+      <li>Your chosen signaling server URL.</li>
+      <li>Your preferred default playback control mode (Everyone vs Host-Only).</li>
+    </ul>
+    <p>This data never leaves your device except to identify your nickname to your party participants.</p>
+
+    <h2>3. Permissions Used</h2>
+    <ul>
+      <li><strong>storage:</strong> To save your local preferences (nickname, server URL).</li>
+      <li><strong>tabs & activeTab:</strong> To detect current playback URL on supported streaming services (Netflix, YouTube) to keep playback synchronized.</li>
+      <li><strong>camera & microphone:</strong> Requested optionally for in-party video call and voice chat.</li>
+    </ul>
+
+    <h2>4. Contact Us</h2>
+    <p>If you have any questions about this Privacy Policy, please open an issue on our GitHub repository: <a href="https://github.com/SahityaThakurela/FlixParty">https://github.com/SahityaThakurela/FlixParty</a>.</p>
+  </div>
+  <footer>
+    &copy; 2026 FlixParty. All rights reserved.
+  </footer>
+</body>
+</html>
