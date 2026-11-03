@@ -24,6 +24,7 @@ class FlixWebRTCManager {
     this.localAnalyser = null;
     this.remoteAnalyser = null;
     this.vadInterval = null;
+    this.pendingCandidates = [];
 
     // Event callbacks
     this.callbacks = {
@@ -39,7 +40,23 @@ class FlixWebRTCManager {
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun.cloudflare.com:3478' }
+      { urls: 'stun:stun.cloudflare.com:3478' },
+      { urls: 'stun:stun.relay.metered.ca:80' },
+      {
+        urls: 'turn:standard.relay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:standard.relay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ];
   }
 
@@ -72,6 +89,16 @@ class FlixWebRTCManager {
 
       this.callbacks.onLocalStream(this.localStream);
       this.setupVoiceActivityDetection(this.localStream, true);
+
+      // If peerConnection is already active, attach tracks dynamically
+      if (this.peerConnection) {
+        this.localStream.getTracks().forEach(track => {
+          try {
+            this.peerConnection.addTrack(track, this.localStream);
+          } catch (e) {}
+        });
+      }
+
       return this.localStream;
     } catch (err) {
       this.log(`Camera/Mic access note: ${err.message}`, 'warn');
@@ -218,8 +245,10 @@ class FlixWebRTCManager {
 
       case 'OFFER':
         if (!this.isHost) {
+          this.log('Received WebRTC Offer from host');
           await this.createPeerConnection();
           await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          await this.drainPendingCandidates();
           const answer = await this.peerConnection.createAnswer();
           await this.peerConnection.setLocalDescription(answer);
           this.sendSignalingMessage({
@@ -232,16 +261,22 @@ class FlixWebRTCManager {
 
       case 'ANSWER':
         if (this.peerConnection) {
+          this.log('Received WebRTC Answer from friend');
           await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          await this.drainPendingCandidates();
         }
         break;
 
       case 'ICE_CANDIDATE':
-        if (this.peerConnection && msg.candidate) {
-          try {
-            await this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
-          } catch (e) {
-            console.error('Error adding ICE candidate:', e);
+        if (msg.candidate) {
+          if (this.peerConnection && this.peerConnection.remoteDescription && this.peerConnection.remoteDescription.type) {
+            try {
+              await this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
+            } catch (e) {
+              console.error('Error adding ICE candidate:', e);
+            }
+          } else {
+            this.pendingCandidates.push(msg.candidate);
           }
         }
         break;
@@ -298,8 +333,22 @@ class FlixWebRTCManager {
     this.peerConnection.onconnectionstatechange = () => {
       const state = this.peerConnection.connectionState;
       this.log(`P2P Connection State: ${state}`);
-      this.isConnected = (state === 'connected');
-      this.callbacks.onConnectionState(state);
+      if (state === 'connected') {
+        this.isConnected = true;
+        this.callbacks.onConnectionState('connected');
+      } else if (state === 'failed' || state === 'disconnected') {
+        this.callbacks.onConnectionState(state);
+      }
+    };
+
+    // ICE state monitor
+    this.peerConnection.oniceconnectionstatechange = () => {
+      const iceState = this.peerConnection.iceConnectionState;
+      this.log(`ICE Connection State: ${iceState}`);
+      if (iceState === 'connected' || iceState === 'completed') {
+        this.isConnected = true;
+        this.callbacks.onConnectionState('connected');
+      }
     };
 
     // Setup DataChannel
@@ -311,6 +360,17 @@ class FlixWebRTCManager {
         this.dataChannel = event.channel;
         this.setupDataChannel(this.dataChannel);
       };
+    }
+  }
+
+  async drainPendingCandidates() {
+    while (this.pendingCandidates && this.pendingCandidates.length > 0) {
+      const candidate = this.pendingCandidates.shift();
+      try {
+        await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.warn('[FlixParty WebRTC] Candidate drain warning:', e);
+      }
     }
   }
 

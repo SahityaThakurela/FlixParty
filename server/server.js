@@ -203,6 +203,8 @@ server.on('upgrade', (req, socket, head) => {
         const room = rooms.get(currentRoomId);
         if (!room) return;
 
+        console.log(`[Signaling] Relaying ${msg.type} from ${currentUserId} in room ${currentRoomId} to ${room.size - 1} peers`);
+
         // Relay signaling packet to peers in room
         for (const [peerId, peer] of room.entries()) {
           if (peerId !== currentUserId) {

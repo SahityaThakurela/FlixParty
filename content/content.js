@@ -63,13 +63,19 @@
 
   // Initialize or start a party
   async function startParty(roomId = null, hostStatus = true) {
-    if (isPartyActive && sidebar) {
+    const targetRoom = (roomId ? roomId.trim() : null);
+
+    if (isPartyActive && currentRoomId === targetRoom && sidebar) {
       sidebar.setCollapsed(false);
       return;
     }
 
+    if (isPartyActive) {
+      leaveParty();
+    }
+
     isHost = hostStatus;
-    currentRoomId = roomId || 'FLIX-' + Math.floor(1000 + Math.random() * 9000);
+    currentRoomId = targetRoom || 'FLIX-' + Math.floor(1000 + Math.random() * 9000);
     isPartyActive = true;
 
     // Create Sidebar UI
@@ -141,11 +147,13 @@
       console.log('[FlixParty Log]', msg);
     });
 
-    // Request camera and microphone
-    await webrtcManager.initMedia(true, true);
-
-    // Connect to Signaling server
+    // Connect to Signaling server immediately
     webrtcManager.connectToSignaling(currentRoomId, isHost);
+
+    // Request camera and microphone asynchronously (non-blocking)
+    webrtcManager.initMedia(true, true).catch(err => {
+      console.warn('[FlixParty] Media init note:', err);
+    });
 
     // Notify service worker
     chrome.runtime.sendMessage({
