@@ -311,7 +311,8 @@ class FlixWebRTCManager {
       case 'OFFER': {
         if (this.isHost) break; // Only guest handles offers
         this.log('Received OFFER from host');
-        // NOTE: No extra peer_joined state here — already shown on PEER_JOINED
+        // Guest: update status to show P2P is being negotiated
+        this.callbacks.onConnectionState('peer_joined');
         await this._doAnswer(msg);
         break;
       }
@@ -442,15 +443,15 @@ class FlixWebRTCManager {
     }
   }
 
-  // Watchdog: if DataChannel doesn't open in 20s, activate WS relay fallback
+  // Watchdog: if DataChannel doesn't open in 10s, activate WS relay fallback
   // and ask host to retry offer
   _startWatchdog() {
     if (this._connectWatchdog) clearTimeout(this._connectWatchdog);
     this._connectWatchdog = setTimeout(() => {
       if (this.isP2PConnected) return; // Already connected — all good
-      this.log('⚠ P2P timeout — activating WS relay fallback', 'warn');
+      this.log('⚠ P2P timeout (10s) — activating WS relay fallback', 'warn');
       this._activateWSRelay();
-    }, 20000);
+    }, 10000);
   }
 
   _clearWatchdog() {
@@ -466,6 +467,8 @@ class FlixWebRTCManager {
     this.isConnected = true; // Data path is available (via WS)
     this.callbacks.onConnectionState('connected'); // Show as connected
     this.log('WS relay active — sync will work, video requires P2P');
+    // Send USER_INTRO so both sides update name labels
+    this.sendData({ type: 'USER_INTRO', username: this.username, userId: this.userId });
     // Still try to fix P2P in background
     if (this.isHost) {
       setTimeout(() => {

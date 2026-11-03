@@ -127,9 +127,8 @@
       if (!sidebar) return;
       sidebar.setConnectionStatus(state);
       if (state === 'peer_joined') {
-        // Only show once per actual connection attempt — avoid duplicates
-        const lastMsg = sidebar.lastSystemMsg;
-        if (lastMsg !== 'connecting') {
+        // Deduplicate — only show once per connection attempt
+        if (sidebar.lastSystemMsg !== 'connecting') {
           sidebar.lastSystemMsg = 'connecting';
           sidebar.addSystemLog(isHost ? '🍿 Friend is connecting...' : '🍿 Connecting to friend...');
         }
@@ -137,7 +136,7 @@
         sidebar.lastSystemMsg = 'connected';
         sidebar.addSystemLog('✅ Connected! Zero-lag sync active.');
       } else if (state === 'peer_left') {
-        sidebar.lastSystemMsg = '';
+        sidebar.lastSystemMsg = ''; // Reset so next join shows the message again
         sidebar.addSystemLog('👋 Friend left the party.');
       }
     });
