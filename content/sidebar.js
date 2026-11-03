@@ -76,7 +76,8 @@ class FlixPartySidebar {
           top: 0;
           right: 0;
           bottom: 0;
-          width: 360px;
+          width: 385px;
+          max-width: 95vw;
           background: rgba(18, 18, 18, 0.94);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
@@ -250,26 +251,126 @@ class FlixPartySidebar {
 
         /* Video Call Area */
         .flix-video-section {
-          padding: 12px 14px;
+          padding: 10px 14px 12px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           background: rgba(14, 14, 14, 0.5);
         }
 
+        .video-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 8px;
+          padding: 0 2px;
+        }
+
+        .video-section-title {
+          font-size: 11px;
+          font-weight: 600;
+          color: #888;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .layout-toggle-group {
+          display: flex;
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 6px;
+          padding: 2px;
+          gap: 2px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .layout-btn {
+          background: transparent;
+          border: none;
+          color: #888;
+          font-size: 11px;
+          padding: 3px 8px;
+          border-radius: 4px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.15s ease;
+        }
+
+        .layout-btn:hover {
+          color: #FFF;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .layout-btn.active {
+          background: #E50914;
+          color: #FFF;
+          font-weight: 600;
+        }
+
         .video-grid {
+          position: relative;
+          width: 100%;
+          margin-bottom: 10px;
+          transition: all 0.25s ease;
+        }
+
+        /* 1. Side-by-Side (Landscape) */
+        .video-grid.layout-side {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 8px;
-          margin-bottom: 10px;
+        }
+
+        .video-grid.layout-side .video-tile {
+          width: 100%;
+          height: 135px;
+          aspect-ratio: 4 / 3;
+        }
+
+        /* 2. Stacked (Portrait / Vertical - Large view) */
+        .video-grid.layout-stacked {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .video-grid.layout-stacked .video-tile {
+          width: 100%;
+          height: 190px;
+          aspect-ratio: 16 / 9;
+        }
+
+        /* 3. Focus Mode (PiP) */
+        .video-grid.layout-pip {
+          position: relative;
+          height: 250px;
+        }
+
+        .video-grid.layout-pip #remoteTile {
+          width: 100%;
+          height: 100%;
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+        }
+
+        .video-grid.layout-pip #localTile {
+          position: absolute;
+          bottom: 10px;
+          right: 10px;
+          width: 110px;
+          height: 80px;
+          z-index: 2;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85);
+          border: 1.5px solid rgba(255, 255, 255, 0.4);
         }
 
         .video-tile {
           position: relative;
-          width: 100%;
-          aspect-ratio: 4 / 3;
           background: #000;
           border-radius: 8px;
           overflow: hidden;
           border: 1px solid rgba(255, 255, 255, 0.1);
+          transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .video-tile.speaking {
@@ -601,7 +702,25 @@ class FlixPartySidebar {
 
         <!-- Video Call Section -->
         <div class="flix-video-section">
-          <div class="video-grid">
+          <div class="video-section-header">
+            <span class="video-section-title">Video Call</span>
+            <div class="layout-toggle-group">
+              <button class="layout-btn active" id="layoutSideBySide" data-layout="side" title="Side-by-Side (Landscape)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/></svg>
+                <span>Side</span>
+              </button>
+              <button class="layout-btn" id="layoutStacked" data-layout="stacked" title="Stacked (Portrait / Big View)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2"/></svg>
+                <span>Stacked</span>
+              </button>
+              <button class="layout-btn" id="layoutPiP" data-layout="pip" title="Focus Mode (Picture-in-Picture)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="12" y="12" width="7" height="7" rx="1" fill="currentColor"/></svg>
+                <span>Focus</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="video-grid layout-side" id="videoGrid">
             <!-- Local User Video -->
             <div class="video-tile" id="localTile">
               <video id="localVideo" autoplay playsinline muted></video>
@@ -718,6 +837,30 @@ class FlixPartySidebar {
         });
       }
     });
+
+    // Video Layout Switcher (Side-by-Side vs Stacked vs Focus PiP)
+    const videoGrid = $('videoGrid');
+    const setVideoLayout = (layout) => {
+      if (!videoGrid) return;
+      videoGrid.className = `video-grid layout-${layout}`;
+      ['layoutSideBySide', 'layoutStacked', 'layoutPiP'].forEach(id => {
+        const btn = $(id);
+        if (btn) btn.classList.toggle('active', btn.dataset.layout === layout);
+      });
+      try {
+        localStorage.setItem('flixparty_video_layout', layout);
+      } catch (e) {}
+    };
+
+    let initialLayout = 'side';
+    try {
+      initialLayout = localStorage.getItem('flixparty_video_layout') || 'side';
+    } catch (e) {}
+    setVideoLayout(initialLayout);
+
+    $('layoutSideBySide')?.addEventListener('click', () => setVideoLayout('side'));
+    $('layoutStacked')?.addEventListener('click', () => setVideoLayout('stacked'));
+    $('layoutPiP')?.addEventListener('click', () => setVideoLayout('pip'));
 
     // Media Controls
     const micBtn = $('micBtn');
