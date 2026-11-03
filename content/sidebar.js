@@ -1111,6 +1111,28 @@ class FlixPartySidebar {
     }
   }
 
+  // Called when P2P video failed and WS video relay is active.
+  // Swaps the <video> element for a <canvas> that receives relayed frames.
+  setRemoteRelayCanvas(canvas) {
+    const remoteTile = this.shadow.getElementById('remoteTile');
+    const placeholder = this.shadow.getElementById('remotePlaceholder');
+    if (!remoteTile) return;
+
+    // Remove existing video element (or old relay canvas) from the tile
+    const oldVideo = this.shadow.getElementById('remoteVideo');
+    if (oldVideo) oldVideo.style.display = 'none';
+
+    // Check if we already inserted a relay canvas
+    const existing = this.shadow.getElementById('remoteRelayCanvas');
+    if (existing) existing.remove();
+
+    canvas.id = 'remoteRelayCanvas';
+    canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;';
+    remoteTile.appendChild(canvas);
+
+    if (placeholder) placeholder.style.display = 'none';
+  }
+
   setSpeaking(peer, isSpeaking) {
     const tile = this.shadow.getElementById(peer === 'local' ? 'localTile' : 'remoteTile');
     if (tile) {

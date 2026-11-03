@@ -1,5 +1,6 @@
 // FlixParty - WebRTC Manager v4
 // Bulletproof: P2P preferred, WebSocket relay fallback if TURN fails
+// Video relay: canvas frames over WebSocket when P2P video fails
 
 class FlixWebRTCManager {
   constructor(options = {}) {
@@ -31,6 +32,14 @@ class FlixWebRTCManager {
     this._reconnectAttempts = 0;
     this._pingInterval = null;
 
+    // Video relay over WebSocket (when P2P/TURN fails)
+    this._videoRelayInterval = null; // setInterval that captures+sends frames
+    this._videoRelayCanvas = null;   // offscreen canvas for frame capture
+    this._videoRelayCtx = null;
+    this._remoteRelayCanvas = null;  // canvas shown as remote "video"
+    this._remoteRelayCtx = null;
+    this._videoRelayActive = false;  // true = we are sending frames via WS
+
     this.audioCtx = null;
     this.localAnalyser = null;
     this.remoteAnalyser = null;
@@ -42,6 +51,7 @@ class FlixWebRTCManager {
       onLocalStream: () => {},
       onDataMessage: () => {},
       onVoiceActivity: () => {},
+      onRemoteRelayCanvas: () => {}, // called when WS video relay canvas is ready
       onLog: () => {}
     };
 
@@ -380,6 +390,15 @@ class FlixWebRTCManager {
         }
         break;
       }
+
+      // ── WebSocket Video Relay ──────────────────────────────────────────────
+      // When P2P video (TURN) fails, we relay compressed video frames via WS
+      case 'WS_VIDEO': {
+        if (msg.fromUserId !== this.userId) {
+          this._renderRelayFrame(msg.frame);
+        }
+        break;
+      }
     }
   }
 
@@ -484,9 +503,11 @@ class FlixWebRTCManager {
     this.isConnected = true; // Data path is available (via WS)
     this._clearWatchdog();
     this.callbacks.onConnectionState('connected'); // Show as connected
-    this.log('WS relay active — sync/chat works. Video needs direct P2P (TURN).');
+    this.log('WS relay active — sync/chat works. Starting video relay too.');
     // Send USER_INTRO exactly once so both sides show each other's names
     this.sendData({ type: 'USER_INTRO', username: this.username, userId: this.userId });
+    // Start video relay over WebSocket — works without P2P/TURN
+    this._startVideoRelay();
     // Do NOT retry P2P here — ICE continues negotiating in background.
     // If it eventually succeeds, DataChannel.onopen will switch us back to P2P.
   }
@@ -648,6 +669,7 @@ class FlixWebRTCManager {
       this.isConnected = true;
       this._useWSRelay = false;
       this._clearWatchdog();
+      this._stopVideoRelay(); // P2P connected — stop WS video relay, use P2P video instead
       this.callbacks.onConnectionState('connected');
       this.sendData({ type: 'USER_INTRO', username: this.username, userId: this.userId });
     };
@@ -696,6 +718,93 @@ class FlixWebRTCManager {
     return false;
   }
 
+  // ── WebSocket Video Relay ─────────────────────────────────────────────────────
+  // When P2P video can't establish (NAT/TURN failure), capture frames from the
+  // local <video> element using a canvas, compress to JPEG, and send via WS.
+  // The remote side receives WS_VIDEO frames and draws them on a canvas.
+  // Quality: 240p @ ~5fps — good enough to see faces, low bandwidth.
+
+  _startVideoRelay() {
+    if (this._videoRelayActive || this._destroyed) return;
+    if (!this.localStream || this.localStream.getVideoTracks().length === 0) return;
+
+    this._videoRelayActive = true;
+    this.log('📡 Video relay via WebSocket started (5fps, 240p)');
+
+    // Offscreen canvas for capturing local video frames
+    this._videoRelayCanvas = document.createElement('canvas');
+    this._videoRelayCanvas.width = 320;
+    this._videoRelayCanvas.height = 240;
+    this._videoRelayCtx = this._videoRelayCanvas.getContext('2d');
+
+    // Create a hidden <video> element to draw from (gets localStream)
+    this._relaySourceVideo = document.createElement('video');
+    this._relaySourceVideo.srcObject = this.localStream;
+    this._relaySourceVideo.muted = true;
+    this._relaySourceVideo.play().catch(() => {});
+
+    // Send frames at 5fps (200ms interval)
+    this._videoRelayInterval = setInterval(() => {
+      if (!this._videoRelayActive || this._destroyed) return;
+      if (this.isP2PConnected) {
+        // P2P came back — stop relay
+        this._stopVideoRelay();
+        return;
+      }
+      if (this.isVideoOff) return;
+      try {
+        const v = this._relaySourceVideo;
+        if (!v || v.readyState < 2 || v.videoWidth === 0) return;
+        this._videoRelayCtx.drawImage(v, 0, 0, 320, 240);
+        // JPEG at 35% quality — ~4-8 KB per frame, ~200 Kbps at 5fps
+        const frame = this._videoRelayCanvas.toDataURL('image/jpeg', 0.35);
+        this._wsSend({
+          type: 'WS_VIDEO',
+          roomId: this.roomId,
+          fromUserId: this.userId,
+          frame
+        });
+      } catch (e) {}
+    }, 200);
+  }
+
+  _stopVideoRelay() {
+    this._videoRelayActive = false;
+    if (this._videoRelayInterval) {
+      clearInterval(this._videoRelayInterval);
+      this._videoRelayInterval = null;
+    }
+    if (this._relaySourceVideo) {
+      this._relaySourceVideo.srcObject = null;
+      this._relaySourceVideo = null;
+    }
+    this._videoRelayCanvas = null;
+    this._videoRelayCtx = null;
+  }
+
+  _renderRelayFrame(dataUrl) {
+    // Draw received frame onto a canvas that acts as the "remote video"
+    if (!dataUrl) return;
+    if (!this._remoteRelayCanvas) {
+      // First frame received — create canvas and notify sidebar
+      this._remoteRelayCanvas = document.createElement('canvas');
+      this._remoteRelayCanvas.width = 320;
+      this._remoteRelayCanvas.height = 240;
+      this._remoteRelayCanvas.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+      this._remoteRelayCtx = this._remoteRelayCanvas.getContext('2d');
+      // Notify sidebar to use this canvas as the remote video element
+      this.callbacks.onRemoteRelayCanvas(this._remoteRelayCanvas);
+      this.log('📡 Receiving remote video via WebSocket relay');
+    }
+    const img = new Image();
+    img.onload = () => {
+      if (this._remoteRelayCtx) {
+        this._remoteRelayCtx.drawImage(img, 0, 0, 320, 240);
+      }
+    };
+    img.src = dataUrl;
+  }
+
   // ── Signaling Send ────────────────────────────────────────────────────────────
 
   _sendSignaling(payload) {
@@ -711,6 +820,7 @@ class FlixWebRTCManager {
   disconnect() {
     this._destroyed = true;
     this._clearWatchdog();
+    this._stopVideoRelay();
     if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
     if (this._pingInterval) { clearInterval(this._pingInterval); this._pingInterval = null; }
     if (this.vadInterval) { clearInterval(this.vadInterval); this.vadInterval = null; }

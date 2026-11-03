@@ -119,12 +119,13 @@ wss.on('connection', (ws) => {
       case 'ANSWER':
       case 'ICE_CANDIDATE':
       case 'REQUEST_OFFER':
-      case 'WS_DATA': {
+      case 'WS_DATA':
+      case 'WS_VIDEO': {
         if (!currentRoomId) break;
         const room = rooms.get(currentRoomId);
         if (!room) break;
 
-        if (msg.type !== 'WS_DATA') {
+        if (msg.type !== 'WS_DATA' && msg.type !== 'WS_VIDEO') {
           console.log(`[Room ${currentRoomId}] Relay ${msg.type} from ${currentUserId}`);
         }
 

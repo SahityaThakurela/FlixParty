@@ -149,6 +149,11 @@
       if (sidebar) sidebar.setRemoteStream(stream);
     });
 
+    // When P2P video fails, WS video relay sends frames via a canvas element
+    webrtcManager.setCallback('onRemoteRelayCanvas', (canvas) => {
+      if (sidebar) sidebar.setRemoteRelayCanvas(canvas);
+    });
+
     webrtcManager.setCallback('onVoiceActivity', (peer, isSpeaking) => {
       if (sidebar) sidebar.setSpeaking(peer, isSpeaking);
     });
