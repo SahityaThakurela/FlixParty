@@ -751,7 +751,7 @@ class FlixPartySidebar {
       this.showToast(`Mode: ${this.controlMode === 'everyone' ? 'Everyone can control' : 'Host only control'}`);
     });
 
-    // Chat Send
+    // Chat Send & Keyboard Isolation
     const chatInput = $('chatInput');
     const send = () => {
       const text = chatInput.value.trim();
@@ -763,8 +763,55 @@ class FlixPartySidebar {
     };
 
     $('sendBtn').addEventListener('click', send);
-    chatInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') send();
+
+    // Stop keyboard events from bubbling to YouTube/Netflix video players (prevents spacebar pausing, seeking, etc.)
+    const stopKeyLeaking = (e) => {
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === 'function') {
+        e.stopImmediatePropagation();
+      }
+    };
+
+    ['keydown', 'keyup', 'keypress'].forEach(evtType => {
+      // Isolate Chat Input
+      chatInput.addEventListener(evtType, (e) => {
+        stopKeyLeaking(e);
+        if (evtType === 'keydown' && e.key === 'Enter') {
+          e.preventDefault();
+          send();
+        }
+      });
+
+      // Isolate Controls Select Dropdown
+      const select = $('controlModeSelect');
+      if (select) {
+        select.addEventListener(evtType, stopKeyLeaking);
+      }
+
+      // Safeguard on root container as well
+      this.container.addEventListener(evtType, stopKeyLeaking);
+    });
+
+    // Blur video player when clicking or focusing chat input
+    const blurPlayer = () => {
+      try {
+        const active = document.activeElement;
+        if (active && active !== this.container) {
+          active.blur();
+        }
+        const player = document.getElementById('movie_player') ||
+                       document.querySelector('.html5-video-player') ||
+                       document.querySelector('video');
+        if (player && typeof player.blur === 'function') {
+          player.blur();
+        }
+      } catch (err) {}
+    };
+
+    chatInput.addEventListener('focus', blurPlayer);
+    chatInput.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      blurPlayer();
     });
 
     // Quick Emojis
