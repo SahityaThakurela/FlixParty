@@ -812,14 +812,19 @@ class FlixPartySidebar {
 
     dot.className = 'status-dot';
     switch (state) {
+      case 'signaling_connected':
       case 'room_joined':
       case 'ready':
         dot.classList.add('connected');
         text.textContent = 'Server Online';
         break;
+      case 'peer_joined':
+        dot.classList.add('connected');
+        text.textContent = 'Connecting P2P...';
+        break;
       case 'connected':
         dot.classList.add('connected');
-        text.textContent = 'In Sync';
+        text.textContent = '🟢 In Sync';
         break;
       case 'connecting':
         text.textContent = 'Connecting...';
@@ -829,8 +834,18 @@ class FlixPartySidebar {
         text.textContent = 'Server Offline';
         this.addSystemLog('⚠️ Signaling server offline. Start local server with "node server/server.js" or configure your hosted server in Settings.');
         break;
+      case 'peer_left':
+        dot.classList.add('connected'); // signaling still up
+        text.textContent = 'Waiting...';
+        // Hide remote video, show placeholder
+        const remoteVideo = this.shadow.getElementById('remoteVideo');
+        const remotePlaceholder = this.shadow.getElementById('remotePlaceholder');
+        if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.style.display = 'none'; }
+        if (remotePlaceholder) remotePlaceholder.style.display = 'flex';
+        break;
       case 'disconnected':
       case 'failed':
+      case 'closed':
         dot.classList.add('error');
         text.textContent = 'Disconnected';
         break;

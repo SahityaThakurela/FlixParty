@@ -124,7 +124,15 @@
 
     // Wire WebRTC callbacks to Sidebar UI and Sync Engine
     webrtcManager.setCallback('onConnectionState', (state) => {
-      if (sidebar) sidebar.setConnectionStatus(state);
+      if (!sidebar) return;
+      sidebar.setConnectionStatus(state);
+      if (state === 'peer_joined') {
+        sidebar.addSystemLog('🍿 Friend is connecting...');
+      } else if (state === 'connected') {
+        sidebar.addSystemLog('✅ P2P connected! Zero-lag sync active.');
+      } else if (state === 'peer_left') {
+        sidebar.addSystemLog('👋 Friend left the party.');
+      }
     });
 
     webrtcManager.setCallback('onLocalStream', (stream) => {
