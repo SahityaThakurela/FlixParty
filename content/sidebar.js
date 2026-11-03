@@ -785,7 +785,7 @@ class FlixPartySidebar {
           </div>
 
           <!-- Chat Input Form -->
-          <form class="chat-input-bar" id="chatForm" onsubmit="return false;">
+          <form class="chat-input-bar" id="chatForm">
             <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." maxlength="300" autocomplete="off" />
             <button type="submit" class="chat-send-btn" id="sendBtn" title="Send message">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>

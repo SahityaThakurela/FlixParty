@@ -119,7 +119,11 @@ class FlixWebRTCManager {
       if (existingSender) {
         existingSender.replaceTrack(track).catch(() => {});
       } else {
-        this.peerConnection.addTrack(track, this.localStream);
+        try {
+          this.peerConnection.addTrack(track, this.localStream);
+        } catch (e) {
+          console.warn('[FlixParty] addTrack error:', e.message);
+        }
       }
     });
   }
@@ -291,6 +295,7 @@ class FlixWebRTCManager {
       case 'OFFER': {
         if (!this.isHost) {
           this.log('Received OFFER from host — creating answer');
+          this.callbacks.onConnectionState('peer_joined');
           await this._handleOffer(msg);
         }
         break;
@@ -303,8 +308,12 @@ class FlixWebRTCManager {
             this.log(`Ignoring ANSWER — unexpected signalingState: ${this.peerConnection.signalingState}`, 'warn');
             break;
           }
-          await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-          await this._drainPendingCandidates();
+          try {
+            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+            await this._drainPendingCandidates();
+          } catch (e) {
+            this.log(`Error applying answer: ${e.message}`, 'error');
+          }
         }
         break;
       }
@@ -349,7 +358,10 @@ class FlixWebRTCManager {
   }
 
   async _resetAndOffer() {
-    this._closePeerConnection();
+    if (this.peerConnection) {
+      try { this.peerConnection.close(); } catch (e) {}
+      this.peerConnection = null;
+    }
     await this._createPeerConnection();
 
     // Wait up to 1s for local stream to be ready
@@ -392,7 +404,10 @@ class FlixWebRTCManager {
     // ICE candidates
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        this._sendSignaling({ type: 'ICE_CANDIDATE', candidate: event.candidate });
+        this._sendSignaling({
+          type: 'ICE_CANDIDATE',
+          candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate
+        });
       }
     };
 
@@ -443,17 +458,30 @@ class FlixWebRTCManager {
   }
 
   async _handleOffer(msg) {
-    this._closePeerConnection();
+    if (this.peerConnection) {
+      try { this.peerConnection.close(); } catch (e) {}
+      this.peerConnection = null;
+    }
     await this._createPeerConnection();
+
+    // Wait up to 1.5s for local stream to be ready if media is initializing
+    if (!this.localStream) {
+      for (let i = 0; i < 15; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        if (this.localStream) break;
+      }
+    }
 
     // Attach local tracks before answering
     this._attachLocalTracks();
 
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-    await this._drainPendingCandidates();
 
     const answer = await this.peerConnection.createAnswer();
     await this.peerConnection.setLocalDescription(answer);
+
+    // Drain pending candidates after local & remote descriptions are set
+    await this._drainPendingCandidates();
 
     this._sendSignaling({
       type: 'ANSWER',
@@ -476,6 +504,7 @@ class FlixWebRTCManager {
   async _drainPendingCandidates() {
     while (this.pendingCandidates.length > 0) {
       const c = this.pendingCandidates.shift();
+      if (!c) continue;
       try {
         await this.peerConnection.addIceCandidate(new RTCIceCandidate(c));
       } catch (e) {
