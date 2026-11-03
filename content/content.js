@@ -227,6 +227,37 @@
     }, 2000);
   }
 
+  // Smart video comparison: checks video IDs rather than full URL query strings
+  function isSameVideo(urlA, urlB) {
+    if (!urlA || !urlB) return true;
+    try {
+      const u1 = new URL(urlA);
+      const u2 = new URL(urlB);
+
+      // YouTube: compare 'v' parameter
+      if (u1.hostname.includes('youtube.com') && u2.hostname.includes('youtube.com')) {
+        const v1 = u1.searchParams.get('v');
+        const v2 = u2.searchParams.get('v');
+        if (v1 && v2) return v1 === v2;
+      }
+
+      // Netflix: compare /watch/XXXXX ID
+      if (u1.hostname.includes('netflix.com') && u2.hostname.includes('netflix.com')) {
+        const getNetflixId = (p) => {
+          const match = p.match(/\/watch\/(\d+)/);
+          return match ? match[1] : null;
+        };
+        const id1 = getNetflixId(u1.pathname);
+        const id2 = getNetflixId(u2.pathname);
+        if (id1 && id2) return id1 === id2;
+      }
+
+      return u1.origin === u2.origin && u1.pathname === u2.pathname;
+    } catch (e) {
+      return true;
+    }
+  }
+
   // Handle remote WebRTC DataChannel messages
   function handleRemoteDataMessage(data) {
     switch (data.type) {
@@ -273,7 +304,7 @@
         break;
 
       case 'SYNC_NAVIGATE':
-        if (data.url && window.location.href !== data.url) {
+        if (data.url && !isSameVideo(data.url, window.location.href)) {
           if (sidebar) sidebar.addSystemLog(`🎬 Host navigated to: ${data.url}`);
           try {
             const newUrl = new URL(data.url);
@@ -312,7 +343,7 @@
         break;
 
       case 'FORCE_SYNC_ALIGN':
-        if (data.url && window.location.href !== data.url) {
+        if (data.url && !isSameVideo(data.url, window.location.href)) {
           if (sidebar) sidebar.addSystemLog(`🎬 Aligning video with host...`);
           try {
             const newUrl = new URL(data.url);

@@ -220,6 +220,15 @@ class FlixWebRTCManager {
         username: this.username,
         isHost: this.isHost
       }));
+
+      // Keepalive ping to prevent Render 55s idle timeout
+      if (!this._pingInterval) {
+        this._pingInterval = setInterval(() => {
+          if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
+            this.signalingSocket.send(JSON.stringify({ type: 'PING' }));
+          }
+        }, 20000);
+      }
     };
 
     this.signalingSocket.onmessage = async (event) => {
@@ -395,14 +404,15 @@ class FlixWebRTCManager {
         this.isConnected = true;
         this.callbacks.onConnectionState('connected');
       } else if (state === 'failed') {
-        this.log('ICE failed — trying restart', 'warn');
-        // Try ICE restart
+        this.log('ICE failed — attempting ICE restart', 'warn');
         if (this.isHost && this.peerConnection) {
-          this.peerConnection.restartIce();
-          this._createAndSendOffer(true).catch(() => {});
+          try {
+            this.peerConnection.restartIce();
+            this._createAndSendOffer(true).catch(() => {});
+          } catch (e) {}
         }
       } else if (state === 'disconnected') {
-        this.callbacks.onConnectionState('peer_left');
+        this.log('ICE state temporarily disconnected, waiting for recovery...', 'warn');
       }
     };
 
@@ -414,8 +424,7 @@ class FlixWebRTCManager {
         this.isConnected = true;
         this.callbacks.onConnectionState('connected');
       } else if (state === 'failed') {
-        this.callbacks.onConnectionState('peer_left');
-        this._closePeerConnection();
+        this.log('P2P connection state failed', 'warn');
       }
     };
 
@@ -538,6 +547,11 @@ class FlixWebRTCManager {
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
       this._reconnectTimer = null;
+    }
+
+    if (this._pingInterval) {
+      clearInterval(this._pingInterval);
+      this._pingInterval = null;
     }
 
     if (this.vadInterval) {

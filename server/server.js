@@ -123,6 +123,10 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      case 'PING':
+        send({ type: 'PONG' });
+        break;
+
       default:
         // Forward any unknown message types to peers (future-proofing)
         if (currentRoomId) {
