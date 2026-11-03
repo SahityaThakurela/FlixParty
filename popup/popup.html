@@ -19,10 +19,13 @@
       </a>
     </header>
 
-    <!-- Not on Netflix Warning (if applicable) -->
-    <div id="notNetflixNotice" class="banner warn" style="display: none;">
-      <p>Navigate to <strong>Netflix</strong> and open any show or movie to use FlixParty.</p>
-      <button id="openNetflixBtn" class="btn btn-secondary">Open Netflix</button>
+    <!-- Not on Supported Video Site Warning -->
+    <div id="notSupportedNotice" class="banner warn" style="display: none;">
+      <p>Navigate to <strong>Netflix</strong> or <strong>YouTube</strong> and open any video to use FlixParty.</p>
+      <div style="display: flex; gap: 8px; width: 100%;">
+        <button id="openNetflixBtn" class="btn btn-secondary" style="flex: 1;">Netflix</button>
+        <button id="openYouTubeBtn" class="btn btn-secondary" style="flex: 1;">YouTube</button>
+      </div>
     </div>
 
     <!-- Active Party State -->

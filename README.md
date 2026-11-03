@@ -1,6 +1,6 @@
-# 🎬 FlixParty — Full-Fledged Netflix Watch Party with Video Call, Voice & Chat
+# 🎬 FlixParty — Netflix & YouTube Watch Party with Video Call, Voice & Chat
 
-> A high-performance, zero-lag alternative to Teleparty with built-in **WebRTC Video Calling**, **Voice Chat**, **Real-Time Text Messaging**, and **Sub-Millisecond Synchronized Playback**.
+> A high-performance, zero-lag alternative to Teleparty with built-in **WebRTC Video Calling**, **Voice Chat**, **Real-Time Text Messaging**, and **Sub-Millisecond Synchronized Playback** across both **Netflix** and **YouTube**.
 
 ---
 

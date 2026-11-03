@@ -60,12 +60,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case 'GET_ACTIVE_TAB_INFO': {
         const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const isNetflix = activeTab?.url?.includes('netflix.com');
-        const isWatching = activeTab?.url?.includes('netflix.com/watch');
+        const isYouTube = activeTab?.url?.includes('youtube.com');
         sendResponse({
           tabId: activeTab?.id,
           url: activeTab?.url,
           isNetflix,
-          isWatching
+          isYouTube,
+          isSupported: isNetflix || isYouTube
         });
         break;
       }
@@ -83,10 +84,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // Keep message channel open for async response
 });
 
-// Clean up badge when navigating away from Netflix
+// Clean up badge when navigating away from supported platforms
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab?.url) {
-    if (!tab.url.includes('netflix.com')) {
+    const isSupported = tab.url.includes('netflix.com') || tab.url.includes('youtube.com');
+    if (!isSupported) {
       await updateBadge(tabId, '', '#000000');
     }
   }

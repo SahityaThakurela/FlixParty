@@ -67,7 +67,7 @@
     try {
       const script = document.createElement('script');
       script.id = 'flixparty-bridge-script';
-      script.src = chrome.runtime.getURL('content/netflix-bridge.js');
+      script.src = chrome.runtime.getURL('content/player-bridge.js');
       script.onload = () => script.remove();
       (document.head || document.documentElement).appendChild(script);
     } catch (e) {
@@ -255,6 +255,19 @@
         if (sidebar) sidebar.addSystemLog(`⏩ ${data.username || 'Friend'} jumped to ${formatTime(data.timeMs)}`);
         break;
 
+      case 'SYNC_NAVIGATE':
+        if (data.url && window.location.href !== data.url) {
+          if (sidebar) sidebar.addSystemLog(`🎬 Host navigated to: ${data.url}`);
+          try {
+            const newUrl = new URL(data.url);
+            newUrl.searchParams.set('flixparty', currentRoomId);
+            window.location.href = newUrl.toString();
+          } catch (e) {
+            window.location.href = data.url;
+          }
+        }
+        break;
+
       case 'SYNC_HEARTBEAT':
         handleHeartbeat(data);
         break;
@@ -370,6 +383,14 @@
             timeMs: state.timeMs,
             username
           });
+        } else if (eventType === 'NAVIGATED') {
+          if (isHost) {
+            webrtcManager.sendData({
+              type: 'SYNC_NAVIGATE',
+              url: window.location.href,
+              username
+            });
+          }
         }
       }
     }

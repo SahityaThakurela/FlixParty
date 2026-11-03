@@ -1,13 +1,16 @@
-// FlixParty - Netflix Bridge (Runs in MAIN World)
-// Provides direct access to Netflix Video Player API and HTML5 <video> fallback
+// FlixParty - Universal Player Bridge (Runs in MAIN World)
+// Supports Netflix, YouTube, and HTML5 video platforms
 
 (function () {
   if (window.__FLIXPARTY_BRIDGE_INITIALIZED__) return;
   window.__FLIXPARTY_BRIDGE_INITIALIZED__ = true;
-  console.log('[FlixParty Bridge] Initialized in MAIN world');
+
+  const isYouTube = window.location.hostname.includes('youtube.com');
+  const isNetflix = window.location.hostname.includes('netflix.com');
+
+  console.log(`[FlixParty Bridge] Initialized in MAIN world (${isYouTube ? 'YouTube' : isNetflix ? 'Netflix' : 'Generic Web'})`);
 
   const BRIDGE_SOURCE = 'FLIXPARTY_BRIDGE';
-  const CONTENT_TARGET = 'FLIXPARTY_CONTENT';
 
   let isApplyingRemoteAction = false;
   let remoteActionTimestamp = 0;
@@ -18,7 +21,12 @@
     isBuffering: false
   };
 
-  // Helper to extract the active video player instance from Netflix's React state
+  // Helper: YouTube player
+  function getYouTubePlayer() {
+    return document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+  }
+
+  // Helper: Netflix player instance from React CAD
   function getNetflixPlayer() {
     try {
       const api = window.netflix?.appContext?.state?.playerApp?.getAPI()?.videoPlayer;
@@ -27,7 +35,6 @@
       const sessionIds = api.getAllPlayerSessionIds();
       if (!sessionIds || sessionIds.length === 0) return null;
 
-      // Find the player session with active duration
       for (const id of sessionIds) {
         const p = api.getVideoPlayerBySessionId(id);
         if (p && typeof p.getCurrentTime === 'function' && p.getDuration() > 0) {
@@ -40,37 +47,64 @@
     }
   }
 
-  // Fallback to native HTML5 <video> tag
+  // Helper: HTML5 <video> element
   function getVideoElement() {
+    if (isYouTube) {
+      return document.querySelector('video.video-stream') || document.querySelector('video');
+    }
     return document.querySelector('video');
   }
 
-  // Get current player state
+  // Extract current player state across platforms
   function getCurrentState() {
-    const player = getNetflixPlayer();
-    const video = getVideoElement();
-
     let isPlaying = false;
     let timeMs = 0;
     let durationMs = 0;
     let isBuffering = false;
 
-    if (player) {
-      try {
-        timeMs = Math.floor(player.getCurrentTime());
-        durationMs = Math.floor(player.getDuration());
-        isPlaying = player.isPlaying();
-        isBuffering = typeof player.getBusy === 'function' ? player.getBusy() : false;
-      } catch (e) {
-        // Fallback to video element below
-      }
-    }
+    if (isYouTube) {
+      const yt = getYouTubePlayer();
+      const video = getVideoElement();
 
-    if (!player && video) {
-      timeMs = Math.floor(video.currentTime * 1000);
-      durationMs = Math.floor((video.duration || 0) * 1000);
-      isPlaying = !video.paused && !video.ended && video.readyState > 2;
-      isBuffering = video.readyState < 3;
+      if (yt && typeof yt.getCurrentTime === 'function') {
+        timeMs = Math.floor(yt.getCurrentTime() * 1000);
+        durationMs = Math.floor((yt.getDuration() || 0) * 1000);
+        const playerState = typeof yt.getPlayerState === 'function' ? yt.getPlayerState() : -1;
+        isPlaying = (playerState === 1);
+        isBuffering = (playerState === 3);
+      } else if (video) {
+        timeMs = Math.floor(video.currentTime * 1000);
+        durationMs = Math.floor((video.duration || 0) * 1000);
+        isPlaying = !video.paused && !video.ended && video.readyState > 2;
+        isBuffering = video.readyState < 3;
+      }
+    } else if (isNetflix) {
+      const player = getNetflixPlayer();
+      const video = getVideoElement();
+
+      if (player) {
+        try {
+          timeMs = Math.floor(player.getCurrentTime());
+          durationMs = Math.floor(player.getDuration());
+          isPlaying = player.isPlaying();
+          isBuffering = typeof player.getBusy === 'function' ? player.getBusy() : false;
+        } catch (e) {}
+      }
+
+      if (!player && video) {
+        timeMs = Math.floor(video.currentTime * 1000);
+        durationMs = Math.floor((video.duration || 0) * 1000);
+        isPlaying = !video.paused && !video.ended && video.readyState > 2;
+        isBuffering = video.readyState < 3;
+      }
+    } else {
+      const video = getVideoElement();
+      if (video) {
+        timeMs = Math.floor(video.currentTime * 1000);
+        durationMs = Math.floor((video.duration || 0) * 1000);
+        isPlaying = !video.paused && !video.ended && video.readyState > 2;
+        isBuffering = video.readyState < 3;
+      }
     }
 
     return { isPlaying, timeMs, durationMs, isBuffering };
@@ -94,6 +128,14 @@
 
   // Execute Play
   function executePlay() {
+    if (isYouTube) {
+      const yt = getYouTubePlayer();
+      if (yt && typeof yt.playVideo === 'function') {
+        yt.playVideo();
+        return;
+      }
+    }
+
     const player = getNetflixPlayer();
     const video = getVideoElement();
 
@@ -101,7 +143,6 @@
       player.play();
     } else if (video) {
       video.play().catch(() => {
-        // Fallback simulate spacebar click on player
         simulateKey(32, 'Space');
       });
     }
@@ -109,6 +150,14 @@
 
   // Execute Pause
   function executePause() {
+    if (isYouTube) {
+      const yt = getYouTubePlayer();
+      if (yt && typeof yt.pauseVideo === 'function') {
+        yt.pauseVideo();
+        return;
+      }
+    }
+
     const player = getNetflixPlayer();
     const video = getVideoElement();
 
@@ -123,6 +172,14 @@
 
   // Execute Seek
   function executeSeek(targetTimeMs) {
+    if (isYouTube) {
+      const yt = getYouTubePlayer();
+      if (yt && typeof yt.seekTo === 'function') {
+        yt.seekTo(targetTimeMs / 1000, true);
+        return;
+      }
+    }
+
     const player = getNetflixPlayer();
     const video = getVideoElement();
 
@@ -133,9 +190,11 @@
     }
   }
 
-  // Keyboard event simulator for fallback
+  // Keyboard simulator fallback
   function simulateKey(keyCode, code) {
-    const target = document.querySelector('.watch-video--player-view') || document.body;
+    const target = document.querySelector('.watch-video--player-view') ||
+                   document.querySelector('#movie_player') ||
+                   document.body;
     target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, keyCode, code }));
     target.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, cancelable: true, keyCode, code }));
   }
@@ -187,13 +246,12 @@
       console.error('[FlixParty Bridge] Error executing action:', err);
     }
 
-    // Release lock after Netflix processes the event
     setTimeout(() => {
       isApplyingRemoteAction = false;
     }, 500);
   });
 
-  // Attach DOM video event listeners to catch user actions
+  // Attach DOM video event listeners
   let currentVideoEl = null;
 
   function attachVideoListeners() {
@@ -209,17 +267,29 @@
     video.addEventListener('seeked', () => broadcastState('SEEKED'));
   }
 
-  // Regular health check and polling
+  // Detect YouTube video navigation (SPA changes)
+  let lastRecordedUrl = window.location.href;
+  function detectUrlChange() {
+    if (window.location.href !== lastRecordedUrl) {
+      lastRecordedUrl = window.location.href;
+      broadcastState('NAVIGATED', { url: window.location.href });
+    }
+  }
+
+  window.addEventListener('yt-navigate-finish', detectUrlChange);
+  window.addEventListener('popstate', detectUrlChange);
+
+  // Polling loop for state sync
   setInterval(() => {
     attachVideoListeners();
+    detectUrlChange();
 
     const currentState = getCurrentState();
-    // Check if playback state changed without video event
+
     if (currentState.isPlaying !== lastKnownState.isPlaying) {
       broadcastState(currentState.isPlaying ? 'PLAY' : 'PAUSE');
     }
 
-    // Check for seek jump (> 1.8 seconds discrepancy during normal playback)
     const timeDelta = Math.abs(currentState.timeMs - (lastKnownState.timeMs + 350));
     if (currentState.isPlaying && lastKnownState.isPlaying && timeDelta > 2000) {
       broadcastState('SEEKED', { jumped: true });
@@ -228,7 +298,7 @@
     lastKnownState = currentState;
   }, 350);
 
-  // Initial announcement that bridge is ready
+  // Announce bridge readiness
   window.postMessage({
     source: BRIDGE_SOURCE,
     type: 'BRIDGE_READY',

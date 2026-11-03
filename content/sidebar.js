@@ -704,7 +704,7 @@ class FlixPartySidebar {
 
     // Close / Leave Party
     $('closeBtn').addEventListener('click', () => {
-      if (confirm('Leave this Netflix watch party?')) {
+      if (confirm('Leave this watch party?')) {
         this.onLeaveParty();
         this.destroy();
       }

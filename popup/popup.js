@@ -2,8 +2,9 @@
 // Manifest V3 best practices: async/await throughout, no .then() chains
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const notNetflixNotice = document.getElementById('notNetflixNotice');
+  const notSupportedNotice = document.getElementById('notSupportedNotice');
   const openNetflixBtn = document.getElementById('openNetflixBtn');
+  const openYouTubeBtn = document.getElementById('openYouTubeBtn');
   const activePartyView = document.getElementById('activePartyView');
   const inactivePartyView = document.getElementById('inactivePartyView');
   const activeRoomCode = document.getElementById('activeRoomCode');
@@ -35,17 +36,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Open Netflix Button
-  openNetflixBtn.addEventListener('click', async () => {
+  openNetflixBtn?.addEventListener('click', async () => {
     await chrome.tabs.create({ url: 'https://www.netflix.com' });
+    window.close();
+  });
+
+  // Open YouTube Button
+  openYouTubeBtn?.addEventListener('click', async () => {
+    await chrome.tabs.create({ url: 'https://www.youtube.com' });
     window.close();
   });
 
   // Query current active tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const isNetflix = tab?.url?.includes('netflix.com');
+  const isSupported = tab?.url?.includes('netflix.com') || tab?.url?.includes('youtube.com');
 
-  if (!isNetflix) {
-    notNetflixNotice.style.display = 'flex';
+  if (!isSupported) {
+    notSupportedNotice.style.display = 'flex';
     inactivePartyView.style.display = 'none';
     activePartyView.style.display = 'none';
     return;
@@ -91,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showActiveView(newRoomId);
       }
     } catch (err) {
-      alert('Please open a Netflix video first, then click Start Party!');
+      alert('Please open a Netflix or YouTube video first, then click Start Party!');
     }
   });
 
@@ -115,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showActiveView(roomId);
       }
     } catch (err) {
-      alert('Please ensure you are on a Netflix video page before joining!');
+      alert('Please ensure you are on a Netflix or YouTube video page before joining!');
     }
   });
 
