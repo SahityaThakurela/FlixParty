@@ -61,21 +61,6 @@
     }
   });
 
-  // Ensure bridge script is active in MAIN world
-  function ensureBridgeInjected() {
-    if (document.getElementById('flixparty-bridge-script')) return;
-    try {
-      const script = document.createElement('script');
-      script.id = 'flixparty-bridge-script';
-      script.src = chrome.runtime.getURL('content/player-bridge.js');
-      script.onload = () => script.remove();
-      (document.head || document.documentElement).appendChild(script);
-    } catch (e) {
-      // Manifest world: MAIN takes care of it
-    }
-  }
-  ensureBridgeInjected();
-
   // Initialize or start a party
   async function startParty(roomId = null, hostStatus = true) {
     if (isPartyActive && sidebar) {
@@ -406,22 +391,22 @@
           isHost,
           controlMode
         });
-        break;
+        return false;
 
       case 'START_PARTY_CMD':
         startParty(request.roomId, true);
         sendResponse({ success: true, roomId: currentRoomId });
-        break;
+        return false;
 
       case 'JOIN_PARTY_CMD':
         joinParty(request.roomId);
         sendResponse({ success: true, roomId: request.roomId });
-        break;
+        return false;
 
       case 'LEAVE_PARTY_CMD':
         leaveParty();
         sendResponse({ success: true });
-        break;
+        return false;
 
       case 'TOGGLE_SIDEBAR_CMD':
         if (sidebar) {
@@ -430,9 +415,11 @@
           startParty();
         }
         sendResponse({ success: true });
-        break;
+        return false;
+
+      default:
+        return false;
     }
-    return true;
   });
 
   function formatTime(ms) {

@@ -29,56 +29,61 @@ async function updateBadge(tabId, text, color) {
 // Listen for messages from content scripts and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
-    const tabId = sender?.tab?.id;
+    try {
+      const tabId = sender?.tab?.id;
 
-    switch (message.type) {
-      case 'PARTY_STARTED':
-      case 'PARTY_JOINED':
-        await chrome.storage.local.set({
-          partyActive: true,
-          currentRoomId: message.roomId,
-          isHost: message.isHost || false
-        });
-        if (tabId) {
-          await updateBadge(tabId, 'LIVE', '#E50914');
+      switch (message.type) {
+        case 'PARTY_STARTED':
+        case 'PARTY_JOINED':
+          await chrome.storage.local.set({
+            partyActive: true,
+            currentRoomId: message.roomId,
+            isHost: message.isHost || false
+          });
+          if (tabId) {
+            await updateBadge(tabId, 'LIVE', '#E50914');
+          }
+          sendResponse({ success: true });
+          break;
+
+        case 'PARTY_LEFT':
+          await chrome.storage.local.set({
+            partyActive: false,
+            currentRoomId: null,
+            isHost: false
+          });
+          if (tabId) {
+            await updateBadge(tabId, '', '#000000');
+          }
+          sendResponse({ success: true });
+          break;
+
+        case 'GET_ACTIVE_TAB_INFO': {
+          const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          const isNetflix = activeTab?.url?.includes('netflix.com');
+          const isYouTube = activeTab?.url?.includes('youtube.com');
+          sendResponse({
+            tabId: activeTab?.id,
+            url: activeTab?.url,
+            isNetflix,
+            isYouTube,
+            isSupported: isNetflix || isYouTube
+          });
+          break;
         }
-        sendResponse({ success: true });
-        break;
 
-      case 'PARTY_LEFT':
-        await chrome.storage.local.set({
-          partyActive: false,
-          currentRoomId: null,
-          isHost: false
-        });
-        if (tabId) {
-          await updateBadge(tabId, '', '#000000');
-        }
-        sendResponse({ success: true });
-        break;
+        case 'OPEN_OPTIONS':
+          await chrome.runtime.openOptionsPage();
+          sendResponse({ success: true });
+          break;
 
-      case 'GET_ACTIVE_TAB_INFO': {
-        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const isNetflix = activeTab?.url?.includes('netflix.com');
-        const isYouTube = activeTab?.url?.includes('youtube.com');
-        sendResponse({
-          tabId: activeTab?.id,
-          url: activeTab?.url,
-          isNetflix,
-          isYouTube,
-          isSupported: isNetflix || isYouTube
-        });
-        break;
+        default:
+          sendResponse({ received: true });
+          break;
       }
-
-      case 'OPEN_OPTIONS':
-        await chrome.runtime.openOptionsPage();
-        sendResponse({ success: true });
-        break;
-
-      default:
-        sendResponse({ received: true });
-        break;
+    } catch (err) {
+      console.warn('[FlixParty SW] Error:', err);
+      sendResponse({ error: err.message });
     }
   })();
   return true; // Keep message channel open for async response
