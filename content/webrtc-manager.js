@@ -1,5 +1,5 @@
-// FlixParty - WebRTC Manager (v2 — robust signaling + reconnect)
-// Handles P2P Video/Audio streaming, DataChannel sync, and Signaling
+// FlixParty - WebRTC Manager (v3 — bulletproof P2P connection)
+// Complete rewrite to fix all race conditions and connection failures
 
 class FlixWebRTCManager {
   constructor(options = {}) {
@@ -20,16 +20,22 @@ class FlixWebRTCManager {
     this.isVideoOff = false;
     this._destroyed = false;
 
+    // ICE candidate queue — never wiped during renegotiation
+    this.pendingCandidates = [];
+
+    // Guard against concurrent offer/answer creation
+    this._negotiating = false;
+
+    // Reconnection tracking
+    this._reconnectTimer = null;
+    this._reconnectAttempts = 0;
+    this._pingInterval = null;
+
     // Audio analyzers for voice activity detection
     this.audioCtx = null;
     this.localAnalyser = null;
     this.remoteAnalyser = null;
     this.vadInterval = null;
-    this.pendingCandidates = [];
-
-    // Reconnection tracking
-    this._reconnectTimer = null;
-    this._reconnectAttempts = 0;
 
     // Event callbacks
     this.callbacks = {
@@ -41,24 +47,32 @@ class FlixWebRTCManager {
       onLog: () => {}
     };
 
+    // TURN servers — using free Open Relay Project (works across NAT)
+    // Also adding Metered and Cloudflare STUN for best coverage
     this.iceServers = [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
       { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:stun.cloudflare.com:3478' },
-      { urls: 'stun:stun.relay.metered.ca:80' },
       {
-        urls: 'turn:standard.relay.metered.ca:80',
+        urls: 'turn:openrelay.metered.ca:80',
         username: 'openrelayproject',
         credential: 'openrelayproject'
       },
       {
-        urls: 'turn:standard.relay.metered.ca:443',
+        urls: 'turn:openrelay.metered.ca:443',
         username: 'openrelayproject',
         credential: 'openrelayproject'
       },
       {
-        urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turns:openrelay.metered.ca:443?transport=tcp',
         username: 'openrelayproject',
         credential: 'openrelayproject'
       }
@@ -76,11 +90,11 @@ class FlixWebRTCManager {
     this.callbacks.onLog(msg, type);
   }
 
-  // ── Local Media ─────────────────────────────────────────────────────────────
+  // ── Local Media ──────────────────────────────────────────────────────────────
 
   async initMedia(videoEnabled = true, audioEnabled = true) {
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: videoEnabled ? {
           width: { ideal: 640, max: 1280 },
           height: { ideal: 480, max: 720 },
@@ -93,19 +107,21 @@ class FlixWebRTCManager {
         } : false
       });
 
-      this.callbacks.onLocalStream(this.localStream);
-      this.setupVoiceActivityDetection(this.localStream, true);
+      this.localStream = stream;
+      this.callbacks.onLocalStream(stream);
+      this.setupVoiceActivityDetection(stream, true);
 
-      // If peerConnection already exists, attach tracks now
-      if (this.peerConnection) {
+      // If peerConnection already exists (e.g. offer arrived before camera ready), attach tracks now
+      if (this.peerConnection && this.peerConnection.signalingState !== 'closed') {
         this._attachLocalTracks();
       }
 
-      return this.localStream;
+      return stream;
     } catch (err) {
       this.log(`Camera/Mic access error: ${err.message}`, 'warn');
-      if (videoEnabled && audioEnabled) {
-        try { return await this.initMedia(false, true); } catch (e) {}
+      // Fallback: try audio-only
+      if (videoEnabled) {
+        try { return await this.initMedia(false, audioEnabled); } catch (e) {}
       }
       return null;
     }
@@ -113,11 +129,15 @@ class FlixWebRTCManager {
 
   _attachLocalTracks() {
     if (!this.localStream || !this.peerConnection) return;
+    if (this.peerConnection.signalingState === 'closed') return;
+
     const senders = this.peerConnection.getSenders();
     this.localStream.getTracks().forEach(track => {
-      const existingSender = senders.find(s => s.track && s.track.kind === track.kind);
-      if (existingSender) {
-        existingSender.replaceTrack(track).catch(() => {});
+      const existing = senders.find(s => s.track && s.track.kind === track.kind);
+      if (existing) {
+        existing.replaceTrack(track).catch(e => {
+          console.warn('[FlixParty] replaceTrack error:', e.message);
+        });
       } else {
         try {
           this.peerConnection.addTrack(track, this.localStream);
@@ -128,7 +148,7 @@ class FlixWebRTCManager {
     });
   }
 
-  // ── Voice Activity Detection ─────────────────────────────────────────────────
+  // ── Voice Activity Detection ──────────────────────────────────────────────────
 
   setupVoiceActivityDetection(stream, isLocal) {
     try {
@@ -164,7 +184,7 @@ class FlixWebRTCManager {
     } catch (e) { /* AudioContext may need user gesture */ }
   }
 
-  // ── Media Controls ───────────────────────────────────────────────────────────
+  // ── Media Controls ────────────────────────────────────────────────────────────
 
   toggleAudio() {
     if (!this.localStream) return false;
@@ -184,25 +204,26 @@ class FlixWebRTCManager {
     return !this.isVideoOff;
   }
 
-  // ── Signaling Connection ─────────────────────────────────────────────────────
+  // ── Signaling Connection ──────────────────────────────────────────────────────
 
   connectToSignaling(roomId, isHost) {
     this.roomId = roomId;
     this.isHost = isHost;
     this._destroyed = false;
+    this._reconnectAttempts = 0;
     this._doConnect();
   }
 
   _doConnect() {
     if (this._destroyed) return;
 
-    // Close stale socket if any
+    // Close stale socket
     if (this.signalingSocket) {
       try { this.signalingSocket.close(); } catch (e) {}
       this.signalingSocket = null;
     }
 
-    this.log(`Connecting to signaling server: ${this.serverUrl}`);
+    this.log(`Connecting to signaling: ${this.serverUrl}`);
 
     try {
       this.signalingSocket = new WebSocket(this.serverUrl);
@@ -214,137 +235,255 @@ class FlixWebRTCManager {
 
     this.signalingSocket.onopen = () => {
       this._reconnectAttempts = 0;
-      this.log('Connected to signaling server ✓');
+      this.log('Signaling connected ✓');
       this.callbacks.onConnectionState('signaling_connected');
 
-      this.signalingSocket.send(JSON.stringify({
+      // Join room
+      this._wsSend({
         type: 'JOIN_ROOM',
         roomId: this.roomId,
         userId: this.userId,
         username: this.username,
         isHost: this.isHost
-      }));
+      });
 
-      // Keepalive ping to prevent Render 55s idle timeout
-      if (!this._pingInterval) {
-        this._pingInterval = setInterval(() => {
-          if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
-            this.signalingSocket.send(JSON.stringify({ type: 'PING' }));
-          }
-        }, 20000);
-      }
+      // Keepalive ping — Render.com drops WS after 55s idle
+      if (this._pingInterval) clearInterval(this._pingInterval);
+      this._pingInterval = setInterval(() => {
+        if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
+          this._wsSend({ type: 'PING' });
+        }
+      }, 20000);
     };
 
     this.signalingSocket.onmessage = async (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        await this._handleSignalingMessage(msg);
-      } catch (err) {
-        console.error('[FlixParty] Signaling parse error:', err);
-      }
+      let msg;
+      try { msg = JSON.parse(event.data); } catch (e) { return; }
+      await this._handleSignalingMessage(msg);
     };
 
     this.signalingSocket.onerror = () => {
-      this.log('Signaling server error', 'warn');
+      this.log('Signaling error', 'warn');
       this.callbacks.onConnectionState('signaling_error');
     };
 
     this.signalingSocket.onclose = () => {
-      this.log('Signaling connection closed');
+      this.log('Signaling closed');
+      if (this._pingInterval) { clearInterval(this._pingInterval); this._pingInterval = null; }
       if (!this._destroyed && this._reconnectAttempts < 5) {
         const delay = Math.min(2000 * Math.pow(1.5, this._reconnectAttempts), 15000);
         this._reconnectAttempts++;
-        this.log(`Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this._reconnectAttempts})...`);
+        this.log(`Reconnecting in ${Math.round(delay / 1000)}s...`);
         this._reconnectTimer = setTimeout(() => this._doConnect(), delay);
       }
     };
   }
 
-  // ── Signaling Message Handler ────────────────────────────────────────────────
+  // Raw WS send helper
+  _wsSend(obj) {
+    try {
+      if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
+        this.signalingSocket.send(JSON.stringify(obj));
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── Signaling Message Handler ─────────────────────────────────────────────────
 
   async _handleSignalingMessage(msg) {
+    this.log(`[Signaling RX] ${msg.type}`);
+
     switch (msg.type) {
 
+      case 'PONG':
+        // keepalive reply — ignore
+        break;
+
       case 'ROOM_JOINED': {
-        this.log(`Joined room: ${this.roomId} — peers already present: ${msg.peerCount - 1}`);
+        this.log(`Joined room ${this.roomId}. Peers present: ${msg.peerCount - 1}`);
         this.callbacks.onConnectionState('signaling_connected');
 
-        // If we joined and there are already peers in the room:
-        // - If we're the host, send OFFER to each existing peer
-        // - If we're the guest, just wait — host will send OFFER when they see PEER_JOINED
+        // If host joins and peer is already in the room, send offer immediately
         if (msg.peerCount > 1 && this.isHost) {
-          this.log('Host rejoining with peer already in room — sending offer');
-          await this._resetAndOffer();
+          this.log('Host rejoining — peer already present, creating offer now');
+          await this._doOffer();
         }
         break;
       }
 
       case 'PEER_JOINED': {
-        this.log(`Peer joined: ${msg.username || 'Friend'} (isHost: ${msg.isHost})`);
+        this.log(`Peer joined: ${msg.username || 'Friend'}`);
         this.callbacks.onConnectionState('peer_joined');
 
         if (this.isHost) {
-          // We are the host — create and send offer to the joining guest
-          this.log('Host detected guest join — creating offer');
-          await this._resetAndOffer();
+          // Host is always the one who creates the offer
+          this.log('Host sending offer to joining peer');
+          await this._doOffer();
         }
-        // If we're the guest, do nothing — wait for OFFER from host
+        // Guest just waits for the OFFER message from host
         break;
       }
 
       case 'OFFER': {
-        if (!this.isHost) {
-          this.log('Received OFFER from host — creating answer');
-          this.callbacks.onConnectionState('peer_joined');
-          await this._handleOffer(msg);
-        }
+        // Only the guest (non-host) handles incoming OFFERs
+        if (this.isHost) break;
+        this.log('Guest received OFFER — creating answer');
+        this.callbacks.onConnectionState('peer_joined');
+        await this._doAnswer(msg);
         break;
       }
 
       case 'ANSWER': {
-        if (this.isHost && this.peerConnection) {
-          this.log('Received ANSWER from guest');
-          if (this.peerConnection.signalingState !== 'have-local-offer') {
-            this.log(`Ignoring ANSWER — unexpected signalingState: ${this.peerConnection.signalingState}`, 'warn');
-            break;
-          }
-          try {
-            await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-            await this._drainPendingCandidates();
-          } catch (e) {
-            this.log(`Error applying answer: ${e.message}`, 'error');
-          }
+        // Only the host handles the incoming ANSWER
+        if (!this.isHost) break;
+        if (!this.peerConnection) break;
+
+        const state = this.peerConnection.signalingState;
+        if (state !== 'have-local-offer') {
+          this.log(`Ignoring ANSWER in state: ${state}`, 'warn');
+          break;
+        }
+
+        this.log('Host received ANSWER — setting remote description');
+        try {
+          await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+          // Flush any ICE candidates that arrived before the remote desc was set
+          await this._drainCandidates();
+        } catch (e) {
+          this.log(`setRemoteDescription(answer) error: ${e.message}`, 'error');
         }
         break;
       }
 
       case 'ICE_CANDIDATE': {
         if (!msg.candidate) break;
-        if (this.peerConnection && this.peerConnection.remoteDescription && this.peerConnection.remoteDescription.type) {
+        const candidate = msg.candidate;
+
+        // FIX: Check both peerConnection existence AND remoteDescription is set
+        const readyToAdd = this.peerConnection &&
+          this.peerConnection.remoteDescription &&
+          this.peerConnection.remoteDescription.type &&
+          this.peerConnection.signalingState !== 'closed';
+
+        if (readyToAdd) {
           try {
-            await this.peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
+            await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            this.log(`ICE candidate added directly`);
           } catch (e) {
-            console.warn('[FlixParty] addIceCandidate error:', e.message);
+            this.log(`addIceCandidate error: ${e.message}`, 'warn');
           }
         } else {
-          this.pendingCandidates.push(msg.candidate);
+          // Queue for later — will be drained after remote desc is set
+          this.pendingCandidates.push(candidate);
+          this.log(`ICE candidate queued (${this.pendingCandidates.length} pending)`);
         }
         break;
       }
 
       case 'PEER_LEFT': {
-        this.log('Peer left the party', 'warn');
+        this.log('Peer left', 'warn');
         this.callbacks.onConnectionState('peer_left');
-        // Close and clean up peer connection so we're ready for next join
         this._closePeerConnection();
         break;
       }
     }
   }
 
-  // ── PeerConnection Lifecycle ─────────────────────────────────────────────────
+  // ── Offer / Answer Flow ───────────────────────────────────────────────────────
 
-  _closePeerConnection() {
+  // HOST creates and sends an SDP offer
+  async _doOffer() {
+    if (this._negotiating) {
+      this.log('Already negotiating, skipping duplicate offer', 'warn');
+      return;
+    }
+    this._negotiating = true;
+
+    try {
+      // Close any old connection — but preserve pendingCandidates queue!
+      const saved = this.pendingCandidates.slice();
+      this._closeConnectionOnly();
+      this.pendingCandidates = saved;
+
+      await this._createPC();
+
+      // Wait up to 2s for camera/mic to be ready
+      if (!this.localStream) {
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 100));
+          if (this.localStream) break;
+        }
+      }
+      this._attachLocalTracks();
+
+      const offer = await this.peerConnection.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      await this.peerConnection.setLocalDescription(offer);
+
+      this._sendSignaling({ type: 'OFFER', sdp: offer });
+      this.log('Offer sent to guest');
+    } catch (e) {
+      this.log(`_doOffer error: ${e.message}`, 'error');
+    } finally {
+      this._negotiating = false;
+    }
+  }
+
+  // GUEST creates and sends an SDP answer
+  async _doAnswer(offerMsg) {
+    if (this._negotiating) {
+      this.log('Already negotiating, skipping duplicate answer', 'warn');
+      return;
+    }
+    this._negotiating = true;
+
+    try {
+      // Close any old connection — preserve queued ICE candidates
+      const saved = this.pendingCandidates.slice();
+      this._closeConnectionOnly();
+      this.pendingCandidates = saved;
+
+      await this._createPC();
+
+      // Wait up to 2s for camera/mic to be ready BEFORE setting remote desc
+      if (!this.localStream) {
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 100));
+          if (this.localStream) break;
+        }
+      }
+      this._attachLocalTracks();
+
+      // Set remote desc (the offer from host)
+      await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerMsg.sdp));
+
+      // Now drain any candidates that arrived before remote desc was set
+      await this._drainCandidates();
+
+      // Create and set local desc (our answer)
+      const answer = await this.peerConnection.createAnswer();
+      await this.peerConnection.setLocalDescription(answer);
+
+      // Send answer back to host
+      this._sendSignaling({
+        type: 'ANSWER',
+        sdp: answer,
+        targetUserId: offerMsg.fromUserId
+      });
+      this.log('Answer sent to host');
+    } catch (e) {
+      this.log(`_doAnswer error: ${e.message}`, 'error');
+    } finally {
+      this._negotiating = false;
+    }
+  }
+
+  // ── PeerConnection Lifecycle ──────────────────────────────────────────────────
+
+  // Only close the RTCPeerConnection — don't touch pendingCandidates
+  _closeConnectionOnly() {
     if (this.dataChannel) {
       try { this.dataChannel.close(); } catch (e) {}
       this.dataChannel = null;
@@ -353,44 +492,36 @@ class FlixWebRTCManager {
       try { this.peerConnection.close(); } catch (e) {}
       this.peerConnection = null;
     }
-    this.pendingCandidates = [];
     this.isConnected = false;
   }
 
-  async _resetAndOffer() {
-    if (this.peerConnection) {
-      try { this.peerConnection.close(); } catch (e) {}
-      this.peerConnection = null;
-    }
-    await this._createPeerConnection();
-
-    // Wait up to 1s for local stream to be ready
-    if (!this.localStream) {
-      for (let i = 0; i < 10; i++) {
-        await new Promise(r => setTimeout(r, 100));
-        if (this.localStream) break;
-      }
-    }
-
-    this._attachLocalTracks();
-    await this._createAndSendOffer();
+  // Full close including candidate queue (used when peer actually leaves)
+  _closePeerConnection() {
+    this._closeConnectionOnly();
+    this.pendingCandidates = [];
   }
 
-  async _createPeerConnection() {
-    if (this.peerConnection) return;
+  async _createPC() {
+    if (this.peerConnection && this.peerConnection.signalingState !== 'closed') return;
 
-    this.peerConnection = new RTCPeerConnection({ iceServers: this.iceServers });
+    this.log('Creating new RTCPeerConnection');
+    this.peerConnection = new RTCPeerConnection({
+      iceServers: this.iceServers,
+      iceTransportPolicy: 'all',       // try STUN first, fall back to TURN
+      bundlePolicy: 'max-bundle',      // bundle audio/video/data on one connection
+      rtcpMuxPolicy: 'require'
+    });
 
-    // Attach local media
+    // Attach local stream if already available
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => {
-        this.peerConnection.addTrack(track, this.localStream);
+        try { this.peerConnection.addTrack(track, this.localStream); } catch (e) {}
       });
     }
 
-    // Remote media
+    // Receive remote tracks
     this.peerConnection.ontrack = (event) => {
-      this.log(`Remote track received: ${event.track.kind}`);
+      this.log(`Remote track: ${event.track.kind}`);
       if (event.streams && event.streams[0]) {
         this.remoteStream = event.streams[0];
       } else {
@@ -401,125 +532,125 @@ class FlixWebRTCManager {
       this.setupVoiceActivityDetection(this.remoteStream, false);
     };
 
-    // ICE candidates
+    // Send ICE candidates to the peer via signaling
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
+        this.log(`Local ICE candidate: ${event.candidate.type || 'unknown'}`);
         this._sendSignaling({
           type: 'ICE_CANDIDATE',
-          candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate
+          candidate: event.candidate.toJSON()
         });
+      } else {
+        this.log('ICE gathering complete');
       }
     };
 
-    // ICE connection state
+    this.peerConnection.onicegatheringstatechange = () => {
+      this.log(`ICE gathering: ${this.peerConnection ? this.peerConnection.iceGatheringState : '?'}`);
+    };
+
+    // ICE connection state — main signal for P2P up/down
     this.peerConnection.oniceconnectionstatechange = () => {
-      const state = this.peerConnection ? this.peerConnection.iceConnectionState : '?';
-      this.log(`ICE state: ${state}`);
+      if (!this.peerConnection) return;
+      const state = this.peerConnection.iceConnectionState;
+      this.log(`ICE connection: ${state}`);
       if (state === 'connected' || state === 'completed') {
         this.isConnected = true;
         this.callbacks.onConnectionState('connected');
       } else if (state === 'failed') {
-        this.log('ICE failed — attempting ICE restart', 'warn');
-        if (this.isHost && this.peerConnection) {
-          try {
-            this.peerConnection.restartIce();
-            this._createAndSendOffer(true).catch(() => {});
-          } catch (e) {}
+        this.log('ICE failed — restarting ICE', 'warn');
+        this.callbacks.onConnectionState('ice_failed');
+        // Auto-restart: host creates a new offer with iceRestart
+        if (this.isHost) {
+          this._iceRestart();
         }
       } else if (state === 'disconnected') {
-        this.log('ICE state temporarily disconnected, waiting for recovery...', 'warn');
+        this.log('ICE temporarily disconnected — waiting', 'warn');
+        // Don't emit peer_left here — give it time to recover
+      } else if (state === 'closed') {
+        this.isConnected = false;
       }
     };
 
-    // P2P connection state
+    // Overall P2P connection state
     this.peerConnection.onconnectionstatechange = () => {
-      const state = this.peerConnection ? this.peerConnection.connectionState : '?';
-      this.log(`P2P state: ${state}`);
+      if (!this.peerConnection) return;
+      const state = this.peerConnection.connectionState;
+      this.log(`P2P connection: ${state}`);
       if (state === 'connected') {
         this.isConnected = true;
         this.callbacks.onConnectionState('connected');
       } else if (state === 'failed') {
-        this.log('P2P connection state failed', 'warn');
+        this.log('P2P failed — attempting recovery', 'warn');
+        if (this.isHost) {
+          setTimeout(() => this._doOffer(), 1000);
+        }
       }
     };
 
-    // DataChannel
+    // DataChannel setup
     if (this.isHost) {
+      // Host creates the DataChannel
       this.dataChannel = this.peerConnection.createDataChannel('flixparty-sync', {
-        ordered: true
+        ordered: true,
+        negotiated: false
       });
       this._setupDataChannel(this.dataChannel);
     } else {
+      // Guest receives the DataChannel
       this.peerConnection.ondatachannel = (event) => {
+        this.log('DataChannel received by guest');
         this.dataChannel = event.channel;
         this._setupDataChannel(this.dataChannel);
       };
     }
   }
 
-  async _handleOffer(msg) {
-    if (this.peerConnection) {
-      try { this.peerConnection.close(); } catch (e) {}
-      this.peerConnection = null;
+  // ICE restart: host creates a new offer with iceRestart=true
+  async _iceRestart() {
+    if (!this.peerConnection || this.peerConnection.signalingState === 'closed') {
+      await this._doOffer();
+      return;
     }
-    await this._createPeerConnection();
-
-    // Wait up to 1.5s for local stream to be ready if media is initializing
-    if (!this.localStream) {
-      for (let i = 0; i < 15; i++) {
-        await new Promise(r => setTimeout(r, 100));
-        if (this.localStream) break;
-      }
+    try {
+      this.log('Performing ICE restart');
+      const offer = await this.peerConnection.createOffer({
+        iceRestart: true,
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true
+      });
+      await this.peerConnection.setLocalDescription(offer);
+      this._sendSignaling({ type: 'OFFER', sdp: offer });
+    } catch (e) {
+      this.log(`ICE restart failed: ${e.message}`, 'error');
+      // Fall back to full renegotiation
+      await this._doOffer();
     }
-
-    // Attach local tracks before answering
-    this._attachLocalTracks();
-
-    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-
-    const answer = await this.peerConnection.createAnswer();
-    await this.peerConnection.setLocalDescription(answer);
-
-    // Drain pending candidates after local & remote descriptions are set
-    await this._drainPendingCandidates();
-
-    this._sendSignaling({
-      type: 'ANSWER',
-      sdp: answer,
-      targetUserId: msg.fromUserId
-    });
   }
 
-  async _createAndSendOffer(iceRestart = false) {
-    if (!this.peerConnection) return;
-    const offer = await this.peerConnection.createOffer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: true,
-      iceRestart
-    });
-    await this.peerConnection.setLocalDescription(offer);
-    this._sendSignaling({ type: 'OFFER', sdp: offer });
-  }
-
-  async _drainPendingCandidates() {
+  // Drain queued ICE candidates
+  async _drainCandidates() {
+    if (!this.peerConnection || this.peerConnection.signalingState === 'closed') return;
+    this.log(`Draining ${this.pendingCandidates.length} queued ICE candidates`);
     while (this.pendingCandidates.length > 0) {
       const c = this.pendingCandidates.shift();
       if (!c) continue;
       try {
         await this.peerConnection.addIceCandidate(new RTCIceCandidate(c));
       } catch (e) {
-        console.warn('[FlixParty] Pending candidate error:', e.message);
+        this.log(`Pending candidate error: ${e.message}`, 'warn');
       }
     }
   }
 
-  // ── DataChannel ──────────────────────────────────────────────────────────────
+  // ── DataChannel ───────────────────────────────────────────────────────────────
 
   _setupDataChannel(channel) {
     channel.onopen = () => {
-      this.log('DataChannel open — zero-lag sync active! ✓');
+      this.log('DataChannel OPEN ✓ — sync active');
       this.isConnected = true;
       this.callbacks.onConnectionState('connected');
+      // Introduce ourselves
       this.sendData({ type: 'USER_INTRO', username: this.username, userId: this.userId });
     };
 
@@ -527,8 +658,8 @@ class FlixWebRTCManager {
       try {
         const data = JSON.parse(event.data);
         this.callbacks.onDataMessage(data);
-      } catch (err) {
-        console.error('[FlixParty] DataChannel parse error:', err);
+      } catch (e) {
+        console.error('[FlixParty] DataChannel parse error:', e);
       }
     };
 
@@ -544,49 +675,43 @@ class FlixWebRTCManager {
 
   sendData(payload) {
     if (this.dataChannel && this.dataChannel.readyState === 'open') {
-      this.dataChannel.send(JSON.stringify({
-        from: this.userId,
-        timestamp: Date.now(),
-        ...payload
-      }));
-      return true;
+      try {
+        this.dataChannel.send(JSON.stringify({
+          from: this.userId,
+          timestamp: Date.now(),
+          ...payload
+        }));
+        return true;
+      } catch (e) {
+        console.warn('[FlixParty] sendData error:', e.message);
+      }
     }
     return false;
   }
 
-  // ── Signaling Send ───────────────────────────────────────────────────────────
+  // ── Signaling Send ────────────────────────────────────────────────────────────
 
   _sendSignaling(payload) {
+    const msg = JSON.stringify({
+      roomId: this.roomId,
+      fromUserId: this.userId,
+      ...payload
+    });
     if (this.signalingSocket && this.signalingSocket.readyState === WebSocket.OPEN) {
-      this.signalingSocket.send(JSON.stringify({
-        roomId: this.roomId,
-        fromUserId: this.userId,
-        ...payload
-      }));
+      this.signalingSocket.send(msg);
     } else {
-      this.log('Cannot send — signaling socket not open', 'warn');
+      this.log('Cannot send signaling — socket not open', 'warn');
     }
   }
 
-  // ── Disconnect / Cleanup ─────────────────────────────────────────────────────
+  // ── Cleanup ───────────────────────────────────────────────────────────────────
 
   disconnect() {
     this._destroyed = true;
 
-    if (this._reconnectTimer) {
-      clearTimeout(this._reconnectTimer);
-      this._reconnectTimer = null;
-    }
-
-    if (this._pingInterval) {
-      clearInterval(this._pingInterval);
-      this._pingInterval = null;
-    }
-
-    if (this.vadInterval) {
-      clearInterval(this.vadInterval);
-      this.vadInterval = null;
-    }
+    if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
+    if (this._pingInterval) { clearInterval(this._pingInterval); this._pingInterval = null; }
+    if (this.vadInterval) { clearInterval(this.vadInterval); this.vadInterval = null; }
 
     if (this.localStream) {
       this.localStream.getTracks().forEach(t => t.stop());

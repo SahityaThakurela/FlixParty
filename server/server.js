@@ -1,6 +1,5 @@
-// FlixParty - WebRTC Signaling Server (using 'ws' npm package for reliability)
-// Deploy to Render: set start command to "node server.js"
-// Render auto-runs "npm install" before start.
+// FlixParty - WebRTC Signaling Server v3
+// Robust relay for OFFER/ANSWER/ICE between host and guest
 
 const http = require('http');
 const { WebSocketServer } = require('ws');
@@ -55,6 +54,20 @@ wss.on('connection', (ws) => {
     }
   };
 
+  // Helper: send to a specific peer by userId
+  const sendToPeer = (roomId, targetUserId, obj) => {
+    const room = rooms.get(roomId);
+    if (!room) return;
+    const peer = room.get(targetUserId);
+    if (peer) {
+      try {
+        if (peer.ws.readyState === peer.ws.OPEN) {
+          peer.ws.send(JSON.stringify(obj));
+        }
+      } catch (e) { /* ignore */ }
+    }
+  };
+
   ws.on('message', (rawData) => {
     let msg;
     try {
@@ -76,16 +89,15 @@ wss.on('connection', (ws) => {
 
         const room = rooms.get(currentRoomId);
 
-        // Remove stale entry for same userId (reconnect scenario)
+        // Remove stale entry for same userId (reconnect)
         if (room.has(currentUserId)) {
           room.delete(currentUserId);
         }
 
         room.set(currentUserId, { ws, send, username: msg.username, isHost: msg.isHost });
+        console.log(`[Room ${currentRoomId}] ${msg.username} (${msg.isHost ? 'HOST' : 'GUEST'}) joined — total: ${room.size}`);
 
-        console.log(`[Signaling] ${msg.username} (${currentUserId}) joined room ${currentRoomId} — peers: ${room.size}`);
-
-        // Tell the joiner how many peers are present
+        // Tell the joiner how many peers are already present
         send({
           type: 'ROOM_JOINED',
           roomId: currentRoomId,
@@ -93,7 +105,7 @@ wss.on('connection', (ws) => {
           peers: [...room.keys()].filter(id => id !== currentUserId)
         });
 
-        // Tell everyone else that a new peer joined
+        // Notify all OTHER peers
         broadcast(currentRoomId, currentUserId, {
           type: 'PEER_JOINED',
           fromUserId: currentUserId,
@@ -106,17 +118,15 @@ wss.on('connection', (ws) => {
       case 'OFFER':
       case 'ANSWER':
       case 'ICE_CANDIDATE': {
+        if (!currentRoomId) break;
         const room = rooms.get(currentRoomId);
-        if (!room) return;
+        if (!room) break;
 
-        console.log(`[Signaling] Relaying ${msg.type} from ${currentUserId} in ${currentRoomId} to ${room.size - 1} peer(s)`);
+        console.log(`[Room ${currentRoomId}] Relay ${msg.type} from ${currentUserId}`);
 
-        // If a targetUserId is specified, send only to them; otherwise broadcast
+        // Targeted relay (e.g. ANSWER sent back to specific host userId)
         if (msg.targetUserId) {
-          const peer = room.get(msg.targetUserId);
-          if (peer) {
-            peer.send({ fromUserId: currentUserId, ...msg });
-          }
+          sendToPeer(currentRoomId, msg.targetUserId, { fromUserId: currentUserId, ...msg });
         } else {
           broadcast(currentRoomId, currentUserId, { fromUserId: currentUserId, ...msg });
         }
@@ -128,7 +138,7 @@ wss.on('connection', (ws) => {
         break;
 
       default:
-        // Forward any unknown message types to peers (future-proofing)
+        // Forward unknown message types to all peers
         if (currentRoomId) {
           broadcast(currentRoomId, currentUserId, { fromUserId: currentUserId, ...msg });
         }
@@ -142,7 +152,7 @@ wss.on('connection', (ws) => {
     if (!room) return;
 
     room.delete(currentUserId);
-    console.log(`[Signaling] ${currentUserId} left room ${currentRoomId} — remaining: ${room.size}`);
+    console.log(`[Room ${currentRoomId}] ${currentUserId} disconnected — remaining: ${room.size}`);
 
     broadcast(currentRoomId, currentUserId, {
       type: 'PEER_LEFT',
@@ -151,7 +161,7 @@ wss.on('connection', (ws) => {
 
     if (room.size === 0) {
       rooms.delete(currentRoomId);
-      console.log(`[Signaling] Room ${currentRoomId} closed`);
+      console.log(`[Room ${currentRoomId}] closed`);
     }
   });
 
@@ -161,9 +171,8 @@ wss.on('connection', (ws) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log('===============================================');
-  console.log('🎬 FlixParty Signaling Server (ws package)');
+  console.log('======================================');
+  console.log('🎬 FlixParty Signaling Server v3');
   console.log(`🚀 Port: ${PORT}`);
-  console.log(`🌐 WebSocket: ws://localhost:${PORT}`);
-  console.log('===============================================');
+  console.log('======================================');
 });

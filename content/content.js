@@ -155,12 +155,15 @@
       console.log('[FlixParty Log]', msg);
     });
 
-    // Connect to Signaling server immediately
-    webrtcManager.connectToSignaling(currentRoomId, isHost);
-
-    // Request camera and microphone asynchronously (non-blocking)
+    // Start camera/mic FIRST, then connect to signaling
+    // This ensures the media stream is available BEFORE any OFFER/ANSWER exchange
     webrtcManager.initMedia(true, true).catch(err => {
       console.warn('[FlixParty] Media init note:', err);
+    }).finally(() => {
+      // Connect after a short delay to let media settle
+      setTimeout(() => {
+        webrtcManager.connectToSignaling(currentRoomId, isHost);
+      }, 300);
     });
 
     // Notify service worker
