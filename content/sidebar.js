@@ -844,6 +844,7 @@ class FlixPartySidebar {
     const video = this.shadow.getElementById('localVideo');
     if (video) {
       video.srcObject = stream;
+      video.play().catch(() => {});
     }
   }
 
@@ -854,6 +855,15 @@ class FlixPartySidebar {
       video.srcObject = stream;
       if (placeholder) placeholder.style.display = 'none';
       video.style.display = 'block';
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // If browser autoplay with audio is restricted, start muted and unmute on first click
+          video.muted = true;
+          video.play().catch(console.warn);
+          window.addEventListener('click', () => { video.muted = false; }, { once: true });
+        });
+      }
     }
   }
 

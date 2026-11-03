@@ -92,10 +92,18 @@ class FlixWebRTCManager {
 
       // If peerConnection is already active, attach tracks dynamically
       if (this.peerConnection) {
+        const senders = this.peerConnection.getSenders ? this.peerConnection.getSenders() : [];
         this.localStream.getTracks().forEach(track => {
           try {
-            this.peerConnection.addTrack(track, this.localStream);
-          } catch (e) {}
+            const sender = senders.find(s => s.track && s.track.kind === track.kind);
+            if (sender && sender.replaceTrack) {
+              sender.replaceTrack(track);
+            } else {
+              this.peerConnection.addTrack(track, this.localStream);
+            }
+          } catch (e) {
+            console.warn('[FlixParty WebRTC] Error attaching track dynamically:', e);
+          }
         });
       }
 
@@ -247,9 +255,24 @@ class FlixWebRTCManager {
         if (!this.isHost) {
           this.log('Received WebRTC Offer from host');
           await this.createPeerConnection();
+
+          // Attach local tracks before creating answer
+          if (this.localStream && this.peerConnection) {
+            const senders = this.peerConnection.getSenders();
+            this.localStream.getTracks().forEach(track => {
+              const exists = senders.some(s => s.track && s.track.kind === track.kind);
+              if (!exists) {
+                this.peerConnection.addTrack(track, this.localStream);
+              }
+            });
+          }
+
           await this.peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
           await this.drainPendingCandidates();
-          const answer = await this.peerConnection.createAnswer();
+          const answer = await this.peerConnection.createAnswer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true
+          });
           await this.peerConnection.setLocalDescription(answer);
           this.sendSignalingMessage({
             type: 'ANSWER',
@@ -313,8 +336,15 @@ class FlixWebRTCManager {
 
     // Handle remote media tracks
     this.peerConnection.ontrack = (event) => {
-      this.log('Received remote media stream');
-      this.remoteStream = event.streams[0];
+      this.log(`Received remote track: ${event.track.kind}`);
+      if (event.streams && event.streams[0]) {
+        this.remoteStream = event.streams[0];
+      } else {
+        if (!this.remoteStream) {
+          this.remoteStream = new MediaStream();
+        }
+        this.remoteStream.addTrack(event.track);
+      }
       this.callbacks.onRemoteStream(this.remoteStream);
       this.setupVoiceActivityDetection(this.remoteStream, false);
     };
@@ -375,7 +405,29 @@ class FlixWebRTCManager {
   }
 
   async createAndSendOffer() {
-    const offer = await this.peerConnection.createOffer();
+    // Wait briefly if localStream is still loading
+    if (!this.localStream) {
+      for (let i = 0; i < 10; i++) {
+        if (this.localStream) break;
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+
+    // Attach local tracks before offering
+    if (this.localStream && this.peerConnection) {
+      const senders = this.peerConnection.getSenders();
+      this.localStream.getTracks().forEach(track => {
+        const exists = senders.some(s => s.track && s.track.kind === track.kind);
+        if (!exists) {
+          this.peerConnection.addTrack(track, this.localStream);
+        }
+      });
+    }
+
+    const offer = await this.peerConnection.createOffer({
+      offerToReceiveAudio: true,
+      offerToReceiveVideo: true
+    });
     await this.peerConnection.setLocalDescription(offer);
     this.sendSignalingMessage({
       type: 'OFFER',
