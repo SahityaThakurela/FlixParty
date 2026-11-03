@@ -665,13 +665,13 @@ class FlixPartySidebar {
             <button class="emoji-btn" data-emoji="🔥">🔥</button>
           </div>
 
-          <!-- Chat Input -->
-          <div class="chat-input-bar">
-            <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." maxlength="300" />
-            <button class="chat-send-btn" id="sendBtn" title="Send message">
+          <!-- Chat Input Form -->
+          <form class="chat-input-bar" id="chatForm" onsubmit="return false;">
+            <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." maxlength="300" autocomplete="off" />
+            <button type="submit" class="chat-send-btn" id="sendBtn" title="Send message">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
-          </div>
+          </form>
         </div>
       </div>
 
@@ -753,6 +753,9 @@ class FlixPartySidebar {
 
     // Chat Send & Keyboard Isolation
     const chatInput = $('chatInput');
+    const chatForm = $('chatForm');
+    const sendBtn = $('sendBtn');
+
     const send = () => {
       const text = chatInput.value.trim();
       if (text) {
@@ -762,9 +765,25 @@ class FlixPartySidebar {
       }
     };
 
-    $('sendBtn').addEventListener('click', send);
+    // 1. Submit on form submit (natively triggered by Enter key in all browsers)
+    if (chatForm) {
+      chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        send();
+      });
+    }
 
-    // Stop keyboard events from bubbling to YouTube/Netflix video players (prevents spacebar pausing, seeking, etc.)
+    // 2. Click send button
+    if (sendBtn) {
+      sendBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        send();
+      });
+    }
+
+    // Helper to stop keyboard events from leaking to YouTube/Netflix player
     const stopKeyLeaking = (e) => {
       e.stopPropagation();
       if (typeof e.stopImmediatePropagation === 'function') {
@@ -772,23 +791,41 @@ class FlixPartySidebar {
       }
     };
 
-    ['keydown', 'keyup', 'keypress'].forEach(evtType => {
-      // Isolate Chat Input
-      chatInput.addEventListener(evtType, (e) => {
-        stopKeyLeaking(e);
-        if (evtType === 'keydown' && e.key === 'Enter') {
-          e.preventDefault();
-          send();
-        }
-      });
+    const isEnterKey = (e) => {
+      return e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.keyCode === 13 || e.which === 13;
+    };
 
-      // Isolate Controls Select Dropdown
-      const select = $('controlModeSelect');
-      if (select) {
-        select.addEventListener(evtType, stopKeyLeaking);
+    // Keydown handling for Enter
+    chatInput.addEventListener('keydown', (e) => {
+      stopKeyLeaking(e);
+      if (isEnterKey(e) && !e.shiftKey) {
+        e.preventDefault();
+        send();
       }
+    });
 
-      // Safeguard on root container as well
+    // Keyup handling
+    chatInput.addEventListener('keyup', (e) => {
+      stopKeyLeaking(e);
+      if (isEnterKey(e) && !e.shiftKey && chatInput.value.trim()) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    // Keypress handling
+    chatInput.addEventListener('keypress', (e) => {
+      stopKeyLeaking(e);
+      if (isEnterKey(e) && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    // Safeguard on dropdown and container
+    const select = $('controlModeSelect');
+    ['keydown', 'keyup', 'keypress'].forEach(evtType => {
+      if (select) select.addEventListener(evtType, stopKeyLeaking);
       this.container.addEventListener(evtType, stopKeyLeaking);
     });
 
