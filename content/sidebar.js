@@ -11,6 +11,7 @@ class FlixPartySidebar {
     this.roomId = options.roomId || '';
     this.controlMode = options.controlMode || 'everyone'; // 'everyone' | 'host_only'
     this.unreadCount = 0;
+    this.lastSystemMsg = ''; // Prevent duplicate system messages
 
     // Callbacks to external controller
     this.onSendMessage = options.onSendMessage || (() => {});

@@ -117,14 +117,18 @@ wss.on('connection', (ws) => {
 
       case 'OFFER':
       case 'ANSWER':
-      case 'ICE_CANDIDATE': {
+      case 'ICE_CANDIDATE':
+      case 'REQUEST_OFFER':
+      case 'WS_DATA': {
         if (!currentRoomId) break;
         const room = rooms.get(currentRoomId);
         if (!room) break;
 
-        console.log(`[Room ${currentRoomId}] Relay ${msg.type} from ${currentUserId}`);
+        if (msg.type !== 'WS_DATA') {
+          console.log(`[Room ${currentRoomId}] Relay ${msg.type} from ${currentUserId}`);
+        }
 
-        // Targeted relay (e.g. ANSWER sent back to specific host userId)
+        // Targeted relay (ANSWER goes to specific host userId)
         if (msg.targetUserId) {
           sendToPeer(currentRoomId, msg.targetUserId, { fromUserId: currentUserId, ...msg });
         } else {
@@ -138,7 +142,7 @@ wss.on('connection', (ws) => {
         break;
 
       default:
-        // Forward unknown message types to all peers
+        // Forward unknown message types to all peers (future-proofing)
         if (currentRoomId) {
           broadcast(currentRoomId, currentUserId, { fromUserId: currentUserId, ...msg });
         }

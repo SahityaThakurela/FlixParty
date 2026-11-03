@@ -127,10 +127,17 @@
       if (!sidebar) return;
       sidebar.setConnectionStatus(state);
       if (state === 'peer_joined') {
-        sidebar.addSystemLog('🍿 Friend is connecting...');
+        // Only show once per actual connection attempt — avoid duplicates
+        const lastMsg = sidebar.lastSystemMsg;
+        if (lastMsg !== 'connecting') {
+          sidebar.lastSystemMsg = 'connecting';
+          sidebar.addSystemLog(isHost ? '🍿 Friend is connecting...' : '🍿 Connecting to friend...');
+        }
       } else if (state === 'connected') {
-        sidebar.addSystemLog('✅ P2P connected! Zero-lag sync active.');
+        sidebar.lastSystemMsg = 'connected';
+        sidebar.addSystemLog('✅ Connected! Zero-lag sync active.');
       } else if (state === 'peer_left') {
+        sidebar.lastSystemMsg = '';
         sidebar.addSystemLog('👋 Friend left the party.');
       }
     });
