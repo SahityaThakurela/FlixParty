@@ -163,6 +163,7 @@ class FlixWebRTCManager {
 
       this.signalingSocket.onopen = () => {
         this.log('Connected to signaling server');
+        this.callbacks.onConnectionState('room_joined');
         this.signalingSocket.send(JSON.stringify({
           type: 'JOIN_ROOM',
           roomId: this.roomId,
@@ -199,6 +200,7 @@ class FlixWebRTCManager {
     switch (msg.type) {
       case 'ROOM_JOINED':
         this.log(`Joined room: ${this.roomId}`);
+        this.callbacks.onConnectionState('room_joined');
         if (msg.peerCount > 1 && this.isHost) {
           // If we are host and another peer is in room, initiate offer
           await this.createPeerConnection();

@@ -812,6 +812,11 @@ class FlixPartySidebar {
 
     dot.className = 'status-dot';
     switch (state) {
+      case 'room_joined':
+      case 'ready':
+        dot.classList.add('connected');
+        text.textContent = 'Server Online';
+        break;
       case 'connected':
         dot.classList.add('connected');
         text.textContent = 'In Sync';
