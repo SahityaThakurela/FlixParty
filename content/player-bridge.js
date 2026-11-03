@@ -214,10 +214,19 @@
     try {
       switch (action) {
         case 'PLAY':
+          if (typeof timeMs === 'number' && timeMs > 0) {
+            const current = getCurrentState();
+            if (Math.abs(current.timeMs - timeMs) > 1000) {
+              executeSeek(timeMs);
+            }
+          }
           executePlay();
           break;
 
         case 'PAUSE':
+          if (typeof timeMs === 'number' && timeMs > 0) {
+            executeSeek(timeMs);
+          }
           executePause();
           break;
 

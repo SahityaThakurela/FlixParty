@@ -170,6 +170,9 @@
       isHost
     });
 
+    // Request initial player state from bridge
+    window.postMessage({ target: 'FLIXPARTY_BRIDGE', action: 'GET_STATE' }, '*');
+
     // Start Heartbeat sync
     startHeartbeatSync();
 
@@ -239,6 +242,19 @@
           const remoteLabel = sidebar.shadow.getElementById('remoteLabel');
           if (remoteLabel) remoteLabel.textContent = data.username || 'Friend';
         }
+        // If we are the host, immediately synchronize the new friend to our video & controls!
+        if (isHost && webrtcManager) {
+          webrtcManager.sendData({
+            type: 'SET_CONTROL_MODE',
+            mode: controlMode
+          });
+          webrtcManager.sendData({
+            type: 'FORCE_SYNC_ALIGN',
+            timeMs: localPlayerState.timeMs,
+            isPlaying: localPlayerState.isPlaying,
+            url: window.location.href
+          });
+        }
         break;
 
       case 'SYNC_PLAY':
@@ -289,12 +305,25 @@
           webrtcManager.sendData({
             type: 'FORCE_SYNC_ALIGN',
             timeMs: localPlayerState.timeMs,
-            isPlaying: localPlayerState.isPlaying
+            isPlaying: localPlayerState.isPlaying,
+            url: window.location.href
           });
         }
         break;
 
       case 'FORCE_SYNC_ALIGN':
+        if (data.url && window.location.href !== data.url) {
+          if (sidebar) sidebar.addSystemLog(`🎬 Aligning video with host...`);
+          try {
+            const newUrl = new URL(data.url);
+            newUrl.searchParams.set('flixparty', currentRoomId);
+            window.location.href = newUrl.toString();
+            return;
+          } catch (e) {
+            window.location.href = data.url;
+            return;
+          }
+        }
         applyRemotePlayback('SYNC_ALIGN', data.timeMs, data.isPlaying);
         if (sidebar) sidebar.showToast('Aligned to host playback!');
         break;
