@@ -457,15 +457,15 @@ class FlixWebRTCManager {
     }
   }
 
-  // Watchdog: if DataChannel doesn't open in 25s, activate WS relay fallback
+  // Watchdog: if DataChannel doesn't open in 12s, activate WS relay fallback
   _startWatchdog() {
     if (this._relayActivated) return; // Relay already active — no need for watchdog
     if (this._connectWatchdog) clearTimeout(this._connectWatchdog);
     this._connectWatchdog = setTimeout(() => {
       if (this.isP2PConnected) return; // Already connected — all good
-      this.log('⚠ P2P timeout (25s) — activating WS relay fallback', 'warn');
+      this.log('⚠ P2P timeout (12s) — activating WS relay fallback', 'warn');
       this._activateWSRelay();
-    }, 25000);
+    }, 12000);
   }
 
   _clearWatchdog() {
