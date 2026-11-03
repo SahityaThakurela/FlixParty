@@ -383,7 +383,7 @@ class FlixPartySidebar {
           width: 100%;
           height: 100%;
           object-fit: cover;
-          display: block;
+          display: none;
         }
 
         .tile-placeholder {
@@ -1087,6 +1087,7 @@ class FlixPartySidebar {
     const video = this.shadow.getElementById('localVideo');
     if (video) {
       video.srcObject = stream;
+      video.style.display = 'block'; // Show video element now that it has a source
       video.play().catch(() => {});
     }
   }

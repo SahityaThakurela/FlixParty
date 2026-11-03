@@ -25,6 +25,7 @@ class FlixWebRTCManager {
     this.pendingCandidates = [];
     this._connectWatchdog = null;    // fires if P2P doesn't open in time
     this._offerPending = false;      // prevent double offers
+    this._relayActivated = false;    // once true, stops the reconnect loop
 
     this._reconnectTimer = null;
     this._reconnectAttempts = 0;
@@ -54,7 +55,18 @@ class FlixWebRTCManager {
       { urls: 'stun:stun3.l.google.com:19302' },
       { urls: 'stun:stun4.l.google.com:19302' },
       { urls: 'stun:stun.cloudflare.com:3478' },
-      // Open Relay TURN — primary relay
+      // Open Relay TURN — primary relay (global endpoint, more reliable)
+      {
+        urls: [
+          'turn:global.relay.metered.ca:80',
+          'turn:global.relay.metered.ca:443',
+          'turn:global.relay.metered.ca:443?transport=tcp',
+          'turns:global.relay.metered.ca:443'
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      // Open Relay TURN — secondary endpoint
       {
         urls: [
           'turn:openrelay.metered.ca:80',
@@ -311,8 +323,10 @@ class FlixWebRTCManager {
       case 'OFFER': {
         if (this.isHost) break; // Only guest handles offers
         this.log('Received OFFER from host');
-        // Guest: update status to show P2P is being negotiated
-        this.callbacks.onConnectionState('peer_joined');
+        // Only show "Connecting..." if relay isn't already active (prevents loop)
+        if (!this._relayActivated) {
+          this.callbacks.onConnectionState('peer_joined');
+        }
         await this._doAnswer(msg);
         break;
       }
@@ -443,15 +457,15 @@ class FlixWebRTCManager {
     }
   }
 
-  // Watchdog: if DataChannel doesn't open in 10s, activate WS relay fallback
-  // and ask host to retry offer
+  // Watchdog: if DataChannel doesn't open in 25s, activate WS relay fallback
   _startWatchdog() {
+    if (this._relayActivated) return; // Relay already active — no need for watchdog
     if (this._connectWatchdog) clearTimeout(this._connectWatchdog);
     this._connectWatchdog = setTimeout(() => {
       if (this.isP2PConnected) return; // Already connected — all good
-      this.log('⚠ P2P timeout (10s) — activating WS relay fallback', 'warn');
+      this.log('⚠ P2P timeout (25s) — activating WS relay fallback', 'warn');
       this._activateWSRelay();
-    }, 10000);
+    }, 25000);
   }
 
   _clearWatchdog() {
@@ -462,21 +476,19 @@ class FlixWebRTCManager {
   }
 
   // Activate WebSocket relay mode — sync data goes through signaling server
+  // IMPORTANT: This must only run ONCE per session — _relayActivated flag prevents re-entry
   _activateWSRelay() {
+    if (this._relayActivated) return; // Guard: only activate once — stops the reconnect loop
+    this._relayActivated = true;
     this._useWSRelay = true;
     this.isConnected = true; // Data path is available (via WS)
+    this._clearWatchdog();
     this.callbacks.onConnectionState('connected'); // Show as connected
-    this.log('WS relay active — sync will work, video requires P2P');
-    // Send USER_INTRO so both sides update name labels
+    this.log('WS relay active — sync/chat works. Video needs direct P2P (TURN).');
+    // Send USER_INTRO exactly once so both sides show each other's names
     this.sendData({ type: 'USER_INTRO', username: this.username, userId: this.userId });
-    // Still try to fix P2P in background
-    if (this.isHost) {
-      setTimeout(() => {
-        if (!this.isP2PConnected) this._doOffer();
-      }, 2000);
-    } else {
-      this._wsSend({ type: 'REQUEST_OFFER', roomId: this.roomId, fromUserId: this.userId });
-    }
+    // Do NOT retry P2P here — ICE continues negotiating in background.
+    // If it eventually succeeds, DataChannel.onopen will switch us back to P2P.
   }
 
   // ── PeerConnection ────────────────────────────────────────────────────────────
@@ -499,6 +511,7 @@ class FlixWebRTCManager {
     this._closeConnectionOnly();
     this.pendingCandidates = [];
     this._useWSRelay = false;
+    this._relayActivated = false; // Reset so next party session can activate relay again
     this.isConnected = false;
   }
 
@@ -555,6 +568,10 @@ class FlixWebRTCManager {
         this.callbacks.onConnectionState('connected');
       } else if (state === 'failed') {
         this.log('ICE failed', 'warn');
+        if (this._relayActivated) {
+          this.log('ICE failed but WS relay is active — staying on relay', 'warn');
+          return; // Don't retry — it would just loop
+        }
         if (this.isHost) {
           // Restart ICE first
           try {
@@ -587,6 +604,10 @@ class FlixWebRTCManager {
         this._clearWatchdog();
         this.callbacks.onConnectionState('connected');
       } else if (state === 'failed') {
+        if (this._relayActivated) {
+          this.log('P2P connection failed but WS relay is active — staying on relay', 'warn');
+          return;
+        }
         if (this.isHost) setTimeout(() => this._doOffer(), 1500);
         else this._wsSend({ type: 'REQUEST_OFFER', roomId: this.roomId, fromUserId: this.userId });
       }
