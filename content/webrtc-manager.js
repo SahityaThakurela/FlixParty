@@ -52,6 +52,7 @@ class FlixWebRTCManager {
       onDataMessage: () => {},
       onVoiceActivity: () => {},
       onRemoteRelayCanvas: () => {}, // called when WS video relay canvas is ready
+      onRemoteUsername: () => {},    // called when remote user's display name is discovered
       onLog: () => {}
     };
 
@@ -109,6 +110,13 @@ class FlixWebRTCManager {
   setCallback(event, fn) {
     if (this.callbacks[event] !== undefined) {
       this.callbacks[event] = fn;
+    }
+  }
+
+  setUsername(name) {
+    if (name) {
+      this.username = name;
+      this.sendData({ type: 'USER_INTRO', username: this.username, userId: this.userId });
     }
   }
 
@@ -301,6 +309,13 @@ class FlixWebRTCManager {
       case 'ROOM_JOINED': {
         this.log(`In room. Peers: ${msg.peerCount - 1}`);
         this.callbacks.onConnectionState('signaling_connected');
+        if (msg.peers && msg.peers.length > 0) {
+          const peer = msg.peers[0];
+          const name = typeof peer === 'object' ? peer.username : null;
+          if (name) {
+            this.callbacks.onRemoteUsername(name);
+          }
+        }
         // Host reconnected and peer is already there — resend offer
         if (msg.peerCount > 1 && this.isHost) {
           await this._doOffer();
@@ -323,7 +338,10 @@ class FlixWebRTCManager {
 
       case 'PEER_JOINED': {
         this.log(`Peer joined: ${msg.username}`);
-        this.callbacks.onConnectionState('peer_joined');
+        if (msg.username) {
+          this.callbacks.onRemoteUsername(msg.username);
+        }
+        this.callbacks.onConnectionState('peer_joined', { username: msg.username });
         if (this.isHost) {
           await this._doOffer();
         }

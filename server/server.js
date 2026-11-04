@@ -97,12 +97,19 @@ wss.on('connection', (ws) => {
         room.set(currentUserId, { ws, send, username: msg.username, isHost: msg.isHost });
         console.log(`[Room ${currentRoomId}] ${msg.username} (${msg.isHost ? 'HOST' : 'GUEST'}) joined — total: ${room.size}`);
 
-        // Tell the joiner how many peers are already present
+        // Tell the joiner who else is already present (including their display names)
+        const peerList = [];
+        for (const [id, peer] of room.entries()) {
+          if (id !== currentUserId) {
+            peerList.push({ userId: id, username: peer.username, isHost: peer.isHost });
+          }
+        }
+
         send({
           type: 'ROOM_JOINED',
           roomId: currentRoomId,
           peerCount: room.size,
-          peers: [...room.keys()].filter(id => id !== currentUserId)
+          peers: peerList
         });
 
         // Notify all OTHER peers

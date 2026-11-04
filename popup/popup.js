@@ -85,14 +85,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Start Party Action
   startPartyBtn.addEventListener('click', async () => {
-    const username = usernameInput.value.trim() || 'Host';
+    let username = usernameInput.value.trim();
+    if (!username) {
+      username = prompt('Please enter your name to start the party:') || '';
+      username = username.trim();
+      if (!username) {
+        usernameInput.focus();
+        usernameInput.style.border = '2px solid #EF4444';
+        return;
+      }
+      usernameInput.value = username;
+    }
     await chrome.storage.local.set({ username });
 
     const newRoomId = 'FLIX-' + Math.floor(1000 + Math.random() * 9000);
     try {
       const res = await chrome.tabs.sendMessage(tab.id, {
         type: 'START_PARTY_CMD',
-        roomId: newRoomId
+        roomId: newRoomId,
+        username
       });
       if (res && res.success) {
         showActiveView(newRoomId);
@@ -110,13 +121,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const username = usernameInput.value.trim() || 'Friend';
+    let username = usernameInput.value.trim();
+    if (!username) {
+      username = prompt('Please enter your name to join the party:') || '';
+      username = username.trim();
+      if (!username) {
+        usernameInput.focus();
+        usernameInput.style.border = '2px solid #EF4444';
+        return;
+      }
+      usernameInput.value = username;
+    }
     await chrome.storage.local.set({ username });
 
     try {
       const res = await chrome.tabs.sendMessage(tab.id, {
         type: 'JOIN_PARTY_CMD',
-        roomId
+        roomId,
+        username
       });
       if (res && res.success) {
         showActiveView(roomId);

@@ -9,6 +9,8 @@ class FlixPartySidebar {
     this.isCollapsed = false;
     this.isHost = options.isHost || false;
     this.roomId = options.roomId || '';
+    this.username = options.username || 'You';
+    this.remoteUsername = options.remoteUsername || '';
     this.controlMode = options.controlMode || 'everyone'; // 'everyone' | 'host_only'
     this.unreadCount = 0;
     this.lastSystemMsg = ''; // Prevent duplicate system messages
@@ -17,6 +19,7 @@ class FlixPartySidebar {
     // Callbacks to external controller
     this.onSendMessage = options.onSendMessage || (() => {});
     this.onSendReaction = options.onSendReaction || (() => {});
+    this.onUpdateUsername = options.onUpdateUsername || (() => {});
     this.onToggleMic = options.onToggleMic || (() => {});
     this.onToggleVideo = options.onToggleVideo || (() => {});
     this.onForceSync = options.onForceSync || (() => {});
@@ -739,6 +742,148 @@ class FlixPartySidebar {
           transform: scale(0.95);
         }
 
+        .emoji-picker-toggle-btn {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #FFF;
+          font-size: 14px;
+          border-radius: 12px;
+          padding: 2px 7px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          transition: background 0.15s, transform 0.15s;
+          user-select: none;
+        }
+
+        .emoji-picker-toggle-btn:hover {
+          background: rgba(255, 255, 255, 0.18);
+          transform: scale(1.08);
+        }
+
+        /* Full Emoji Picker Panel */
+        .full-emoji-picker {
+          background: rgba(20, 20, 20, 0.98);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          display: flex;
+          flex-direction: column;
+          animation: slideUpEmoji 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          max-height: 220px;
+          z-index: 10;
+        }
+
+        @keyframes slideUpEmoji {
+          from { transform: translateY(12px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        .emoji-picker-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 5px 8px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(14, 14, 14, 0.9);
+        }
+
+        .emoji-picker-tabs {
+          display: flex;
+          gap: 3px;
+        }
+
+        .emoji-tab-btn {
+          background: transparent;
+          border: none;
+          font-size: 17px;
+          padding: 3px 6px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.15s, transform 0.15s;
+          user-select: none;
+        }
+
+        .emoji-tab-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          transform: scale(1.15);
+        }
+
+        .emoji-tab-btn.active {
+          background: rgba(229, 9, 20, 0.25);
+          box-shadow: inset 0 -2px 0 #E50914;
+        }
+
+        .emoji-picker-close-btn {
+          background: transparent;
+          border: none;
+          color: #888;
+          font-size: 13px;
+          cursor: pointer;
+          padding: 3px 6px;
+          border-radius: 4px;
+          transition: color 0.15s;
+        }
+
+        .emoji-picker-close-btn:hover {
+          color: #FFF;
+        }
+
+        .emoji-picker-grid {
+          display: grid;
+          grid-template-columns: repeat(8, 1fr);
+          gap: 2px;
+          padding: 6px 8px;
+          max-height: 165px;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
+
+        .emoji-picker-grid::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .emoji-picker-grid::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 4px;
+        }
+
+        .emoji-picker-item {
+          font-size: 21px;
+          text-align: center;
+          padding: 4px 1px;
+          border-radius: 5px;
+          cursor: pointer;
+          transition: background 0.12s, transform 0.12s;
+          user-select: none;
+          line-height: 1.2;
+        }
+
+        .emoji-picker-item:hover {
+          background: rgba(255, 255, 255, 0.16);
+          transform: scale(1.28);
+        }
+
+        .emoji-inline-btn {
+          background: transparent;
+          border: none;
+          font-size: 19px;
+          cursor: pointer;
+          padding: 2px 4px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.15s, background 0.15s;
+          user-select: none;
+          flex-shrink: 0;
+        }
+
+        .emoji-inline-btn:hover {
+          transform: scale(1.22);
+          background: rgba(255, 255, 255, 0.08);
+        }
+
         /* Reply Preview Bar above input (WhatsApp style tag) */
         .chat-reply-preview {
           display: flex;
@@ -937,7 +1082,7 @@ class FlixPartySidebar {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 <span>Camera Off</span>
               </div>
-              <div class="tile-label">You</div>
+              <div class="tile-label" id="localLabel" style="cursor: pointer;" title="Click to change your display name">${this.username} ✎</div>
             </div>
 
             <!-- Remote Friend Video -->
@@ -947,7 +1092,7 @@ class FlixPartySidebar {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 <span>Waiting for friend...</span>
               </div>
-              <div class="tile-label" id="remoteLabel">Friend</div>
+              <div class="tile-label" id="remoteLabel">${this.remoteUsername || 'Friend'}</div>
             </div>
           </div>
 
@@ -983,7 +1128,7 @@ class FlixPartySidebar {
             <div class="chat-system-log">🍿 Welcome to FlixParty! Play/pause/seek will stay synchronized in real time.</div>
           </div>
 
-          <!-- Quick Emoji Bar -->
+          <!-- Quick Emoji Bar with Full Picker Toggle -->
           <div class="emoji-bar">
             <button class="emoji-btn" data-emoji="🍿">🍿</button>
             <button class="emoji-btn" data-emoji="❤️">❤️</button>
@@ -991,6 +1136,24 @@ class FlixPartySidebar {
             <button class="emoji-btn" data-emoji="😱">😱</button>
             <button class="emoji-btn" data-emoji="👏">👏</button>
             <button class="emoji-btn" data-emoji="🔥">🔥</button>
+            <button type="button" class="emoji-picker-toggle-btn" id="toggleEmojiPickerBtn" title="Full Emoji Section">
+              <span>😊 More</span>
+            </button>
+          </div>
+
+          <!-- Full Emoji Picker Section -->
+          <div class="full-emoji-picker" id="fullEmojiPicker" style="display: none;">
+            <div class="emoji-picker-header">
+              <div class="emoji-picker-tabs">
+                <button type="button" class="emoji-tab-btn active" data-tab="smileys" title="Smileys">😀</button>
+                <button type="button" class="emoji-tab-btn" data-tab="gestures" title="Gestures">👋</button>
+                <button type="button" class="emoji-tab-btn" data-tab="hearts" title="Hearts & Love">❤️</button>
+                <button type="button" class="emoji-tab-btn" data-tab="party" title="Movie & Party">🍿</button>
+                <button type="button" class="emoji-tab-btn" data-tab="food" title="Food & Drink">🍕</button>
+              </div>
+              <button type="button" class="emoji-picker-close-btn" id="closeEmojiPickerBtn" title="Close Emojis">✕</button>
+            </div>
+            <div class="emoji-picker-grid" id="emojiPickerGrid"></div>
           </div>
 
           <!-- WhatsApp-style Reply Preview Bar (Tag context) -->
@@ -1006,6 +1169,7 @@ class FlixPartySidebar {
 
           <!-- Chat Input Form -->
           <form class="chat-input-bar" id="chatForm">
+            <button type="button" class="emoji-inline-btn" id="inlineEmojiBtn" title="Choose emoji">😊</button>
             <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." maxlength="300" autocomplete="off" />
             <button type="submit" class="chat-send-btn" id="sendBtn" title="Send message">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -1136,12 +1300,13 @@ class FlixPartySidebar {
       if (text) {
         const replyContext = this.activeReply;
         this.onSendMessage(text, replyContext);
-        this.addChatMessage('You', text, true, replyContext, Date.now());
+        this.addChatMessage(this.username || 'You', text, true, replyContext, Date.now());
         if (this.isEmojiOnly(text)) {
           this.animateFloatingEmoji(text);
         }
         chatInput.value = '';
         cancelReply();
+        if (fullEmojiPicker) fullEmojiPicker.style.display = 'none';
       }
     };
 
@@ -1244,10 +1409,114 @@ class FlixPartySidebar {
         } else {
           this.onSendMessage(emoji);
         }
-        this.addChatMessage('You', emoji, true);
+        this.addChatMessage(this.username || 'You', emoji, true);
         this.animateFloatingEmoji(emoji);
       });
     });
+
+    // Full Emoji Picker Section Logic
+    const fullEmojiPicker = $('fullEmojiPicker');
+    const emojiPickerGrid = $('emojiPickerGrid');
+    const toggleEmojiPickerBtn = $('toggleEmojiPickerBtn');
+    const inlineEmojiBtn = $('inlineEmojiBtn');
+    const closeEmojiPickerBtn = $('closeEmojiPickerBtn');
+
+    const EMOJI_CATEGORIES = {
+      smileys: [
+        '😀','😃','😄','😁','😆','😅','😂','🤣','🥹','😇','🙂','🙃','😉','😌','😍','🥰',
+        '😘','😗','😙','😚','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨',
+        '😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕',
+        '🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟',
+        '🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣',
+        '😞','😓','😩','😫','🥱','😤','😡','😠','🤬','💀','🤡','👻','💩','🤖'
+      ],
+      gestures: [
+        '👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆',
+        '🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️',
+        '💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀',
+        '👁️','👅','👄','🫂'
+      ],
+      hearts: [
+        '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖',
+        '💘','💝','💟','💌','💋','💍','💎','✨','💫','⭐','🌟','❤️‍🔥','❤️‍🩹'
+      ],
+      party: [
+        '🍿','🎬','🎥','📽️','🎞️','🎟️','🎫','🏆','🥇','🥈','🥉','🎪','🎭','🎨','🎤','🎧',
+        '🎼','🎹','🥁','🎷','🎺','🎸','🎮','🎲','🎳','🎯','🎰','🧩','🥂','🍻','🍾','🥳',
+        '🎉','🎊','🎈','🔥','💥','⚡','💯','💣','🪄','🔮'
+      ],
+      food: [
+        '🍕','🍔','🍟','🌭','🍿','🧂','🥓','🥚','🍳','🧇','🥞','🧈','🍞','🥐','🥖','🥨',
+        '🥯','🧀','🥗','🥪','🌮','🌯','🍱','🍙','🍜','🍝','🍣','🥟','🍦','🍧','🍨','🍩',
+        '🍪','🎂','🍰','🍫','🍬','🍭','☕','🧋','🥤','🍺','🍷','🍸','🍹','🧊'
+      ]
+    };
+
+    let activeEmojiTab = 'smileys';
+
+    const renderEmojiTab = (tabName) => {
+      if (!emojiPickerGrid) return;
+      activeEmojiTab = tabName;
+      emojiPickerGrid.innerHTML = '';
+      const list = EMOJI_CATEGORIES[tabName] || EMOJI_CATEGORIES.smileys;
+      list.forEach(emoji => {
+        const item = document.createElement('span');
+        item.className = 'emoji-picker-item';
+        item.textContent = emoji;
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const start = chatInput.selectionStart ?? chatInput.value.length;
+          const end = chatInput.selectionEnd ?? chatInput.value.length;
+          const text = chatInput.value;
+          chatInput.value = text.substring(0, start) + emoji + text.substring(end);
+          chatInput.selectionStart = chatInput.selectionEnd = start + emoji.length;
+          chatInput.focus();
+        });
+        emojiPickerGrid.appendChild(item);
+      });
+
+      this.shadow.querySelectorAll('.emoji-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+      });
+    };
+
+    const toggleEmojiPicker = (e) => {
+      if (e) e.stopPropagation();
+      if (!fullEmojiPicker) return;
+      const isOpen = fullEmojiPicker.style.display !== 'none';
+      if (isOpen) {
+        fullEmojiPicker.style.display = 'none';
+      } else {
+        fullEmojiPicker.style.display = 'flex';
+        renderEmojiTab(activeEmojiTab);
+      }
+    };
+
+    toggleEmojiPickerBtn?.addEventListener('click', toggleEmojiPicker);
+    inlineEmojiBtn?.addEventListener('click', toggleEmojiPicker);
+    closeEmojiPickerBtn?.addEventListener('click', () => {
+      if (fullEmojiPicker) fullEmojiPicker.style.display = 'none';
+    });
+
+    this.shadow.querySelectorAll('.emoji-tab-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        renderEmojiTab(btn.dataset.tab);
+      });
+    });
+
+    // Click on local display name to change nickname anytime
+    const localLabel = $('localLabel');
+    if (localLabel) {
+      localLabel.addEventListener('click', () => {
+        const entered = prompt('Enter your display name:', this.username);
+        if (entered && entered.trim() && entered.trim() !== this.username) {
+          this.setLocalUsername(entered.trim());
+          this.onUpdateUsername(this.username);
+          this.showToast(`Display name updated to: ${this.username}`);
+        }
+      });
+    }
   }
 
   setCollapsed(collapsed) {
@@ -1275,6 +1544,20 @@ class FlixPartySidebar {
     this.roomId = roomId;
     const el = this.shadow.getElementById('roomCodeDisplay');
     if (el) el.textContent = roomId;
+  }
+
+  setLocalUsername(name) {
+    if (!name) return;
+    this.username = name;
+    const el = this.shadow.getElementById('localLabel');
+    if (el) el.textContent = `${name} ✎`;
+  }
+
+  setRemoteUsername(name) {
+    if (!name) return;
+    this.remoteUsername = name;
+    const el = this.shadow.getElementById('remoteLabel');
+    if (el) el.textContent = name;
   }
 
   setConnectionStatus(state) {

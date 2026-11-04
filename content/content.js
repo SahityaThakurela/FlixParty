@@ -11,6 +11,7 @@
   let isHost = false;
   let controlMode = 'everyone'; // 'everyone' | 'host_only'
   let username = 'Friend';
+  let remoteUsername = '';
   let serverUrl = 'ws://localhost:3000';
 
   let localPlayerState = {
@@ -33,8 +34,22 @@
     const urlParams = new URLSearchParams(window.location.search);
     const inviteRoom = urlParams.get('flixparty');
     if (inviteRoom && !isPartyActive) {
-      setTimeout(() => {
-        joinParty(inviteRoom);
+      setTimeout(async () => {
+        let nameToUse = username;
+        if (!nameToUse || nameToUse === 'Friend' || nameToUse === 'Host') {
+          const stored = (await chrome.storage.local.get(['username'])).username;
+          if (stored && stored !== 'Friend' && stored !== 'Host') {
+            nameToUse = stored;
+          } else {
+            const entered = prompt('🎬 FlixParty: Enter your display name to join the party:', '');
+            if (entered && entered.trim()) {
+              nameToUse = entered.trim();
+              await chrome.storage.local.set({ username: nameToUse });
+            }
+          }
+        }
+        username = nameToUse || 'Friend';
+        joinParty(inviteRoom, username);
       }, 1500);
     }
   }
@@ -62,8 +77,12 @@
   });
 
   // Initialize or start a party
-  async function startParty(roomId = null, hostStatus = true) {
+  async function startParty(roomId = null, hostStatus = true, customUsername = null) {
     const targetRoom = (roomId ? roomId.trim() : null);
+
+    if (customUsername) {
+      username = customUsername.trim();
+    }
 
     if (isPartyActive && currentRoomId === targetRoom && sidebar) {
       sidebar.setCollapsed(false);
@@ -81,8 +100,17 @@
     // Create Sidebar UI
     sidebar = new FlixPartySidebar({
       roomId: currentRoomId,
+      username,
+      remoteUsername,
       isHost,
       controlMode,
+      onUpdateUsername: (newName) => {
+        username = newName;
+        chrome.storage.local.set({ username: newName });
+        if (webrtcManager) {
+          webrtcManager.setUsername(newName);
+        }
+      },
       onSendMessage: (text, replyTo) => {
         if (webrtcManager) {
           webrtcManager.sendData({
@@ -134,21 +162,34 @@
     });
 
     // Wire WebRTC callbacks to Sidebar UI and Sync Engine
-    webrtcManager.setCallback('onConnectionState', (state) => {
+    webrtcManager.setCallback('onRemoteUsername', (name) => {
+      if (!name) return;
+      remoteUsername = name;
+      if (sidebar) {
+        sidebar.setRemoteUsername(name);
+      }
+    });
+
+    webrtcManager.setCallback('onConnectionState', (state, extra) => {
       if (!sidebar) return;
       sidebar.setConnectionStatus(state);
       if (state === 'peer_joined') {
+        const peerName = extra?.username || remoteUsername || 'Friend';
+        if (extra?.username) {
+          remoteUsername = extra.username;
+          sidebar.setRemoteUsername(extra.username);
+        }
         // Deduplicate — only show once per connection attempt
-        if (sidebar.lastSystemMsg !== 'connecting') {
-          sidebar.lastSystemMsg = 'connecting';
-          sidebar.addSystemLog(isHost ? '🍿 Friend is connecting...' : '🍿 Connecting to friend...');
+        if (sidebar.lastSystemMsg !== 'connecting_' + peerName) {
+          sidebar.lastSystemMsg = 'connecting_' + peerName;
+          sidebar.addSystemLog(isHost ? `🍿 ${peerName} is connecting...` : `🍿 Connecting to ${peerName}...`);
         }
       } else if (state === 'connected') {
         sidebar.lastSystemMsg = 'connected';
         sidebar.addSystemLog('✅ Connected! Zero-lag sync active.');
       } else if (state === 'peer_left') {
         sidebar.lastSystemMsg = ''; // Reset so next join shows the message again
-        sidebar.addSystemLog('👋 Friend left the party.');
+        sidebar.addSystemLog(`👋 ${remoteUsername || 'Friend'} left the party.`);
       }
     });
 
@@ -205,9 +246,9 @@
   }
 
   // Join an existing party
-  async function joinParty(roomId) {
+  async function joinParty(roomId, customUsername = null) {
     if (!roomId) return;
-    await startParty(roomId.trim(), false);
+    await startParty(roomId.trim(), false, customUsername);
   }
 
   // Leave active party
@@ -288,7 +329,7 @@
     switch (data.type) {
       case 'CHAT':
         if (sidebar) {
-          sidebar.addChatMessage(data.username || 'Friend', data.text, false, data.replyTo || null, data.timestamp || null);
+          sidebar.addChatMessage(data.username || remoteUsername || 'Friend', data.text, false, data.replyTo || null, data.timestamp || null);
           if (sidebar.isEmojiOnly && sidebar.isEmojiOnly(data.text)) {
             sidebar.animateFloatingEmoji(data.text);
           }
@@ -298,15 +339,24 @@
       case 'REACTION':
         if (sidebar && data.emoji) {
           sidebar.animateFloatingEmoji(data.emoji);
-          sidebar.addChatMessage(data.username || 'Friend', data.emoji, false, null, data.timestamp || null);
+          sidebar.addChatMessage(data.username || remoteUsername || 'Friend', data.emoji, false, null, data.timestamp || null);
         }
         break;
 
       case 'USER_INTRO':
-        if (sidebar) {
-          sidebar.addSystemLog(`🍿 ${data.username || 'Friend'} joined the party!`);
-          const remoteLabel = sidebar.shadow.getElementById('remoteLabel');
-          if (remoteLabel) remoteLabel.textContent = data.username || 'Friend';
+        if (sidebar && data.username) {
+          remoteUsername = data.username;
+          sidebar.setRemoteUsername(data.username);
+          sidebar.addSystemLog(`🍿 ${data.username} joined the party!`);
+        }
+        // Bidirectional intro: if we haven't replied yet, send back our USER_INTRO
+        if (webrtcManager && !data._isReply) {
+          webrtcManager.sendData({
+            type: 'USER_INTRO',
+            username,
+            userId: webrtcManager.userId,
+            _isReply: true
+          });
         }
         // If we are the host, immediately synchronize the new friend to our video & controls!
         if (isHost && webrtcManager) {
@@ -325,17 +375,17 @@
 
       case 'SYNC_PLAY':
         applyRemotePlayback('PLAY', data.timeMs);
-        if (sidebar) sidebar.addSystemLog(`▶ ${data.username || 'Friend'} pressed Play`);
+        if (sidebar) sidebar.addSystemLog(`▶ ${data.username || remoteUsername || 'Friend'} pressed Play`);
         break;
 
       case 'SYNC_PAUSE':
         applyRemotePlayback('PAUSE', data.timeMs);
-        if (sidebar) sidebar.addSystemLog(`⏸ ${data.username || 'Friend'} paused at ${formatTime(data.timeMs)}`);
+        if (sidebar) sidebar.addSystemLog(`⏸ ${data.username || remoteUsername || 'Friend'} paused at ${formatTime(data.timeMs)}`);
         break;
 
       case 'SYNC_SEEK':
         applyRemotePlayback('SEEK', data.timeMs);
-        if (sidebar) sidebar.addSystemLog(`⏩ ${data.username || 'Friend'} jumped to ${formatTime(data.timeMs)}`);
+        if (sidebar) sidebar.addSystemLog(`⏩ ${data.username || remoteUsername || 'Friend'} jumped to ${formatTime(data.timeMs)}`);
         break;
 
       case 'SYNC_NAVIGATE':
@@ -505,12 +555,14 @@
         return false;
 
       case 'START_PARTY_CMD':
-        startParty(request.roomId, true);
+        if (request.username) username = request.username;
+        startParty(request.roomId, true, request.username);
         sendResponse({ success: true, roomId: currentRoomId });
         return false;
 
       case 'JOIN_PARTY_CMD':
-        joinParty(request.roomId);
+        if (request.username) username = request.username;
+        joinParty(request.roomId, request.username);
         sendResponse({ success: true, roomId: request.roomId });
         return false;
 
