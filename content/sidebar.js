@@ -2038,27 +2038,23 @@ class FlixPartySidebar {
         @keyframes flixFloatReaction {
           0% {
             opacity: 0;
-            transform: translate3d(0, 0, 0) scale(0.4);
+            transform: translate3d(0, 0, 0) scale(0.5);
           }
-          10% {
+          8% {
             opacity: 1;
-            transform: translate3d(var(--x-mid), -70px, 0) scale(1.18);
+            transform: translate3d(0, -45px, 0) scale(1.12);
           }
-          20% {
+          16% {
             opacity: 1;
-            transform: translate3d(var(--x-sway1), -150px, 0) scale(1.0);
+            transform: translate3d(0, -100px, 0) scale(1.0);
           }
-          60% {
-            opacity: 0.96;
-            transform: translate3d(var(--x-sway2), -330px, 0) scale(0.98);
-          }
-          82% {
-            opacity: 0.75;
-            transform: translate3d(var(--x-sway3), -460px, 0) scale(0.92);
+          72% {
+            opacity: 0.95;
+            transform: translate3d(var(--x-drift), -390px, 0) scale(1.0);
           }
           100% {
             opacity: 0;
-            transform: translate3d(var(--x-end), -540px, 0) scale(0.84);
+            transform: translate3d(var(--x-drift), -550px, 0) scale(0.9);
           }
         }
 
@@ -2068,12 +2064,12 @@ class FlixPartySidebar {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 2px;
+          gap: 3px;
           pointer-events: none;
           z-index: 2147483647;
           user-select: none;
           will-change: transform, opacity;
-          animation: flixFloatReaction 2.4s cubic-bezier(0.18, 0.89, 0.32, 1) forwards;
+          animation: flixFloatReaction 2.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
 
         .flix-reaction-emoji {
@@ -2118,25 +2114,15 @@ class FlixPartySidebar {
     const spawnRight = baseRight + xSpread;
     const spawnBottom = 85;
 
-    // Dynamic gentle sinusoidal sway path
-    const swayDir = Math.random() > 0.5 ? 1 : -1;
-    const swayAmp = 14 + Math.random() * 20;
-    const xMid = (swayDir * swayAmp * 0.4).toFixed(1) + 'px';
-    const xSway1 = (-swayDir * swayAmp * 0.7).toFixed(1) + 'px';
-    const xSway2 = (swayDir * swayAmp * 1.0).toFixed(1) + 'px';
-    const xSway3 = (-swayDir * swayAmp * 0.5).toFixed(1) + 'px';
-    const xEnd = (swayDir * swayAmp * 1.2).toFixed(1) + 'px';
+    // Subtle single-direction glide (between -10px and +10px), perfectly smooth with no zig-zag
+    const xDrift = ((Math.random() - 0.5) * 20).toFixed(1) + 'px';
 
     // Create single lightweight container
     const floater = document.createElement('div');
     floater.className = 'flix-reaction-floater';
     floater.style.right = `${spawnRight}px`;
     floater.style.bottom = `${spawnBottom}px`;
-    floater.style.setProperty('--x-mid', xMid);
-    floater.style.setProperty('--x-sway1', xSway1);
-    floater.style.setProperty('--x-sway2', xSway2);
-    floater.style.setProperty('--x-sway3', xSway3);
-    floater.style.setProperty('--x-end', xEnd);
+    floater.style.setProperty('--x-drift', xDrift);
 
     const emojiEl = document.createElement('div');
     emojiEl.className = 'flix-reaction-emoji';
