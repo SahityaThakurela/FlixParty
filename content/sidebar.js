@@ -37,7 +37,7 @@ class FlixPartySidebar {
 
     this.container = document.createElement('div');
     this.container.id = 'flixparty-root';
-    this.container.style.cssText = 'all: initial; position: fixed; top: 0; right: 0; bottom: 0; z-index: 2147483647; pointer-events: none;';
+    this.container.style.cssText = 'all: initial; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2147483647; pointer-events: none;';
 
     this.shadow = this.container.attachShadow({ mode: 'open' });
     this.shadow.innerHTML = this.getTemplate();
@@ -2029,65 +2029,116 @@ class FlixPartySidebar {
   animateFloatingEmoji(emoji) {
     const primaryEmoji = (emoji || '🍿').trim();
 
-    // Ensure burst keyframe animation exists
-    if (!this.shadow.getElementById('flixReactionKeyframes')) {
+    // Ensure vaporization keyframe animation exists
+    if (!this.shadow.getElementById('flixVaporKeyframes')) {
       const style = document.createElement('style');
-      style.id = 'flixReactionKeyframes';
+      style.id = 'flixVaporKeyframes';
       style.textContent = `
-        @keyframes flixFloatBurst {
+        @keyframes flixVaporStream {
           0% {
             opacity: 0;
-            transform: translate3d(0, 30px, 0) scale(0.3) rotate(0deg);
+            transform: translate3d(0, 0, 0) scale(0.35) rotate(0deg);
+            filter: blur(1px) drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
           }
-          15% {
-            opacity: 1;
-            transform: translate3d(calc(var(--drift) * 0.25), -50px, 0) scale(1.4) rotate(calc(var(--drift) * 0.15deg));
-          }
-          35% {
-            transform: translate3d(calc(var(--drift) * 0.5), -120px, 0) scale(1.15) rotate(calc(var(--drift) * 0.25deg));
-          }
-          70% {
+          14% {
             opacity: 0.95;
-            transform: translate3d(calc(var(--drift) * 0.8), -240px, 0) scale(1) rotate(calc(var(--drift) * 0.35deg));
+            transform: translate3d(var(--sway-1), -65px, 0) scale(1.15) rotate(var(--rot-1));
+            filter: blur(0px) drop-shadow(0 0 12px rgba(168, 216, 74, 0.8)) drop-shadow(0 0 20px rgba(255, 255, 255, 0.45));
+          }
+          38% {
+            opacity: 1;
+            transform: translate3d(var(--sway-2), -170px, 0) scale(1.02) rotate(var(--rot-2));
+            filter: blur(0px) drop-shadow(0 0 14px rgba(168, 216, 74, 0.65));
+          }
+          65% {
+            opacity: 0.88;
+            transform: translate3d(var(--sway-3), -295px, 0) scale(1.12) rotate(var(--rot-3));
+            filter: blur(1.5px) drop-shadow(0 0 18px rgba(168, 216, 74, 0.5));
+          }
+          88% {
+            opacity: 0.45;
+            transform: translate3d(var(--sway-4), -410px, 0) scale(1.28) rotate(var(--rot-4));
+            filter: blur(3.5px) drop-shadow(0 0 24px rgba(255, 255, 255, 0.3));
           }
           100% {
             opacity: 0;
-            transform: translate3d(var(--drift), -360px, 0) scale(0.8) rotate(calc(var(--drift) * 0.5deg));
+            transform: translate3d(var(--sway-end), -490px, 0) scale(1.45) rotate(var(--rot-end));
+            filter: blur(7px) drop-shadow(0 0 30px rgba(255, 255, 255, 0));
           }
         }
       `;
       this.shadow.appendChild(style);
     }
 
-    // Launch a burst of 4 particles with staggered timing and drift for high visibility
-    const particles = [
-      { size: 68, delay: 0, xOffset: 0, drift: (Math.random() - 0.5) * 50 },
-      { size: 48, delay: 100, xOffset: -40, drift: -45 - Math.random() * 30 },
-      { size: 52, delay: 180, xOffset: 40, drift: 45 + Math.random() * 30 },
-      { size: 38, delay: 260, xOffset: (Math.random() - 0.5) * 60, drift: (Math.random() - 0.5) * 90 }
-    ];
+    // Position beside the chat sidebar (sidebar width is 385px from right edge)
+    // When sidebar is collapsed, position near floating pill
+    const baseRight = this.isCollapsed ? 45 : 405;
 
-    particles.forEach(p => {
+    // Launch a chimney stream of 14 glowing vaporizing emojis
+    const particleCount = 14;
+    for (let i = 0; i < particleCount; i++) {
+      // Stagger delays across ~750ms to create a continuous rising vapor stream
+      const delay = Math.round(i * 52 + (Math.random() * 26));
+
+      // Varied particle sizes: micro vapor embers (18px) to medium floaters (38px)
+      const size = Math.floor(18 + Math.random() * 22);
+
+      // Duration for each particle between 2.1s and 2.7s
+      const duration = (2.1 + Math.random() * 0.6).toFixed(2);
+
+      // Horizontal spread beside the chat panel (within 45px range)
+      const xSpread = Math.round((Math.random() - 0.5) * 45);
+      const spawnRight = baseRight + xSpread;
+
+      // Starting bottom near the reaction/input bar
+      const spawnBottom = Math.round(75 + (Math.random() * 30 - 15));
+
+      // Organic sway simulation for rising heat/vapor
+      const swayDir = Math.random() > 0.5 ? 1 : -1;
+      const swayAmp = 18 + Math.random() * 32;
+      const sway1 = (swayDir * swayAmp * 0.4).toFixed(1) + 'px';
+      const sway2 = (-swayDir * swayAmp * 0.75).toFixed(1) + 'px';
+      const sway3 = (swayDir * swayAmp * 1.1).toFixed(1) + 'px';
+      const sway4 = (-swayDir * swayAmp * 0.6).toFixed(1) + 'px';
+      const swayEnd = (swayDir * swayAmp * 1.3).toFixed(1) + 'px';
+
+      const rot1 = ((Math.random() - 0.5) * 20).toFixed(1) + 'deg';
+      const rot2 = ((Math.random() - 0.5) * 35).toFixed(1) + 'deg';
+      const rot3 = ((Math.random() - 0.5) * 50).toFixed(1) + 'deg';
+      const rot4 = ((Math.random() - 0.5) * 70).toFixed(1) + 'deg';
+      const rotEnd = ((Math.random() - 0.5) * 90).toFixed(1) + 'deg';
+
       setTimeout(() => {
         const floater = document.createElement('div');
         floater.textContent = primaryEmoji;
         floater.style.cssText = `
           position: fixed;
-          bottom: 75px;
-          right: ${Math.floor(220 + p.xOffset + (Math.random() * 60 - 30))}px;
-          font-size: ${p.size}px;
+          bottom: ${spawnBottom}px;
+          right: ${spawnRight}px;
+          font-size: ${size}px;
           line-height: 1;
           pointer-events: none;
           z-index: 2147483647;
           user-select: none;
-          --drift: ${p.drift}px;
-          filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 14px rgba(255, 255, 255, 0.4));
-          animation: flixFloatBurst 2.2s cubic-bezier(0.16, 0.8, 0.25, 1) forwards;
+          will-change: transform, opacity, filter;
+          --sway-1: ${sway1};
+          --sway-2: ${sway2};
+          --sway-3: ${sway3};
+          --sway-4: ${sway4};
+          --sway-end: ${swayEnd};
+          --rot-1: ${rot1};
+          --rot-2: ${rot2};
+          --rot-3: ${rot3};
+          --rot-4: ${rot4};
+          --rot-end: ${rotEnd};
+          animation: flixVaporStream ${duration}s cubic-bezier(0.2, 0.75, 0.35, 1) forwards;
         `;
         this.shadow.appendChild(floater);
-        setTimeout(() => floater.remove(), 2300);
-      }, p.delay);
-    });
+        setTimeout(() => {
+          if (floater.parentElement) floater.remove();
+        }, Math.round(parseFloat(duration) * 1000) + 120);
+      }, delay);
+    }
   }
 
   escapeHTML(str) {
