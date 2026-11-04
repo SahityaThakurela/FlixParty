@@ -40,6 +40,16 @@ class FlixWebRTCManager {
     this._remoteRelayCtx = null;
     this._videoRelayActive = false;  // true = we are sending frames via WS
 
+    // Audio relay over WebSocket (when P2P/TURN fails)
+    this._audioRelayActive = false;
+    this._relayAudioSource = null;
+    this._relayAudioProcessor = null;
+    this._relaySilentGain = null;
+    this._remoteAudioCtx = null;
+    this._nextAudioPlayTime = 0;
+    this._remoteVadTimeout = null;
+    this._remoteStreamAudioSource = null;
+
     this.audioCtx = null;
     this.localAnalyser = null;
     this.remoteAnalyser = null;
@@ -143,19 +153,42 @@ class FlixWebRTCManager {
       });
 
       this.localStream = stream;
+      this.localStream.getAudioTracks().forEach(t => { t.enabled = !this.isAudioMuted; });
       this.callbacks.onLocalStream(stream);
       this.setupVoiceActivityDetection(stream, true);
 
       if (this.peerConnection && this.peerConnection.signalingState !== 'closed') {
         this._attachLocalTracks();
       }
+      if (this._useWSRelay) {
+        this._startAudioRelay();
+      }
       return stream;
     } catch (err) {
-      this.log(`Media error: ${err.message}`, 'warn');
-      if (videoEnabled) {
-        try { return await this.initMedia(false, audioEnabled); } catch (e) {}
+      this.log(`Media error with constraints: ${err.message}, trying basic constraints`, 'warn');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: videoEnabled,
+          audio: audioEnabled
+        });
+        this.localStream = stream;
+        this.localStream.getAudioTracks().forEach(t => { t.enabled = !this.isAudioMuted; });
+        this.callbacks.onLocalStream(stream);
+        this.setupVoiceActivityDetection(stream, true);
+        if (this.peerConnection && this.peerConnection.signalingState !== 'closed') {
+          this._attachLocalTracks();
+        }
+        if (this._useWSRelay) {
+          this._startAudioRelay();
+        }
+        return stream;
+      } catch (err2) {
+        this.log(`Media init fallback failed: ${err2.message}`, 'error');
+        if (videoEnabled) {
+          try { return await this.initMedia(false, audioEnabled); } catch (e) {}
+        }
+        return null;
       }
-      return null;
     }
   }
 
@@ -164,11 +197,21 @@ class FlixWebRTCManager {
     if (this.peerConnection.signalingState === 'closed') return;
     const senders = this.peerConnection.getSenders();
     this.localStream.getTracks().forEach(track => {
+      if (track.kind === 'audio') {
+        track.enabled = !this.isAudioMuted;
+      } else if (track.kind === 'video') {
+        track.enabled = !this.isVideoOff;
+      }
       const existing = senders.find(s => s.track && s.track.kind === track.kind);
       if (existing) {
         existing.replaceTrack(track).catch(() => {});
       } else {
-        try { this.peerConnection.addTrack(track, this.localStream); } catch (e) {}
+        const emptySender = senders.find(s => !s.track);
+        if (emptySender) {
+          emptySender.replaceTrack(track).catch(() => {});
+        } else {
+          try { this.peerConnection.addTrack(track, this.localStream); } catch (e) {}
+        }
       }
     });
   }
@@ -182,12 +225,20 @@ class FlixWebRTCManager {
         const Ctx = window.AudioContext || window.webkitAudioContext;
         this.audioCtx = new Ctx();
       }
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
       const source = this.audioCtx.createMediaStreamSource(stream);
       const analyser = this.audioCtx.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
-      if (isLocal) this.localAnalyser = analyser;
-      else this.remoteAnalyser = analyser;
+      if (isLocal) {
+        this._localVadSource = source;
+        this.localAnalyser = analyser;
+      } else {
+        this._remoteVadSource = source;
+        this.remoteAnalyser = analyser;
+      }
       if (!this.vadInterval) {
         const pcm = new Uint8Array(128);
         this.vadInterval = setInterval(() => {
@@ -202,6 +253,36 @@ class FlixWebRTCManager {
         }, 120);
       }
     } catch (e) {}
+  }
+
+  resumeAudioContext() {
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      this.audioCtx.resume().catch(() => {});
+    }
+    if (this._remoteAudioCtx && this._remoteAudioCtx.state === 'suspended') {
+      this._remoteAudioCtx.resume().catch(() => {});
+    }
+  }
+
+  playRemoteAudioWithWebAudio(stream) {
+    try {
+      if (!stream || stream.getAudioTracks().length === 0) return;
+      if (!this._remoteAudioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        this._remoteAudioCtx = new Ctx();
+      }
+      if (this._remoteAudioCtx.state === 'suspended') {
+        this._remoteAudioCtx.resume().catch(() => {});
+      }
+      if (this._remoteStreamAudioSource) {
+        try { this._remoteStreamAudioSource.disconnect(); } catch (e) {}
+      }
+      this._remoteStreamAudioSource = this._remoteAudioCtx.createMediaStreamSource(stream);
+      this._remoteStreamAudioSource.connect(this._remoteAudioCtx.destination);
+      this.log('Web Audio pipeline connected for remote stream audio');
+    } catch (e) {
+      this.log(`Web Audio stream error: ${e.message}`, 'warn');
+    }
   }
 
   // ── Media Controls ────────────────────────────────────────────────────────────
@@ -417,6 +498,15 @@ class FlixWebRTCManager {
         }
         break;
       }
+
+      // ── WebSocket Audio Relay ──────────────────────────────────────────────
+      // When P2P audio fails or in WS relay mode, play relayed voice frames
+      case 'WS_AUDIO': {
+        if (msg.fromUserId !== this.userId && msg.pcm) {
+          this._renderRelayAudio(msg.pcm, msg.sampleRate || 16000);
+        }
+        break;
+      }
     }
   }
 
@@ -521,11 +611,12 @@ class FlixWebRTCManager {
     this.isConnected = true; // Data path is available (via WS)
     this._clearWatchdog();
     this.callbacks.onConnectionState('connected'); // Show as connected
-    this.log('WS relay active — sync/chat works. Starting video relay too.');
+    this.log('WS relay active — sync/chat works. Starting video & audio relay too.');
     // Send USER_INTRO exactly once so both sides show each other's names
     this.sendData({ type: 'USER_INTRO', username: this.username, userId: this.userId });
-    // Start video relay over WebSocket — works without P2P/TURN
+    // Start video & audio relay over WebSocket — works without P2P/TURN
     this._startVideoRelay();
+    this._startAudioRelay();
     // Do NOT retry P2P here — ICE continues negotiating in background.
     // If it eventually succeeds, DataChannel.onopen will switch us back to P2P.
   }
@@ -565,22 +656,28 @@ class FlixWebRTCManager {
       rtcpMuxPolicy: 'require'
     });
 
+    try {
+      this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' });
+      this.peerConnection.addTransceiver('video', { direction: 'sendrecv' });
+    } catch (e) {}
+
     if (this.localStream) {
-      this.localStream.getTracks().forEach(t => {
-        try { this.peerConnection.addTrack(t, this.localStream); } catch (e) {}
-      });
+      this._attachLocalTracks();
     }
 
     this.peerConnection.ontrack = (event) => {
       this.log(`Remote track: ${event.track.kind}`);
-      if (event.streams && event.streams[0]) {
-        this.remoteStream = event.streams[0];
-      } else {
-        if (!this.remoteStream) this.remoteStream = new MediaStream();
+      if (!this.remoteStream) {
+        this.remoteStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream();
+      }
+      if (!this.remoteStream.getTracks().includes(event.track)) {
         this.remoteStream.addTrack(event.track);
       }
       this.callbacks.onRemoteStream(this.remoteStream);
-      this.setupVoiceActivityDetection(this.remoteStream, false);
+      if (event.track.kind === 'audio') {
+        this.playRemoteAudioWithWebAudio(this.remoteStream);
+        this.setupVoiceActivityDetection(this.remoteStream, false);
+      }
     };
 
     this.peerConnection.onicecandidate = (event) => {
@@ -688,6 +785,7 @@ class FlixWebRTCManager {
       this._useWSRelay = false;
       this._clearWatchdog();
       this._stopVideoRelay(); // P2P connected — stop WS video relay, use P2P video instead
+      this._stopAudioRelay(); // P2P connected — stop WS audio relay, use P2P audio instead
       this.callbacks.onConnectionState('connected');
       this.sendData({ type: 'USER_INTRO', username: this.username, userId: this.userId });
     };
@@ -823,6 +921,182 @@ class FlixWebRTCManager {
     img.src = dataUrl;
   }
 
+  // ── WebSocket Audio Relay ─────────────────────────────────────────────────────
+  // When P2P audio can't establish, capture mic audio, convert to 16kHz 16-bit PCM,
+  // and stream over WebSocket. The peer queues it into an AudioContext jitter buffer.
+
+  _startAudioRelay() {
+    if (this._audioRelayActive || this._destroyed) return;
+    if (!this.localStream || this.localStream.getAudioTracks().length === 0) return;
+
+    this._audioRelayActive = true;
+    this.log('🎤 Audio relay via WebSocket started (16kHz PCM)');
+
+    try {
+      if (!this.audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        this.audioCtx = new Ctx();
+      }
+      if (this.audioCtx.state === 'suspended') {
+        this.audioCtx.resume().catch(() => {});
+      }
+
+      this._relayAudioSource = this.audioCtx.createMediaStreamSource(this.localStream);
+      // ScriptProcessor buffer of 2048 gives ~42ms audio frames
+      this._relayAudioProcessor = this.audioCtx.createScriptProcessor(2048, 1, 1);
+
+      this._relayAudioProcessor.onaudioprocess = (e) => {
+        if (!this._audioRelayActive || this._destroyed) return;
+        if (this.isP2PConnected) {
+          this._stopAudioRelay();
+          return;
+        }
+        if (this.isAudioMuted) return;
+
+        const input = e.inputBuffer.getChannelData(0);
+        const downsampled = this._downsampleAudio(input, this.audioCtx.sampleRate, 16000);
+
+        // Simple VAD: skip silent chunks to minimize bandwidth
+        let maxVal = 0;
+        for (let i = 0; i < downsampled.length; i++) {
+          const abs = Math.abs(downsampled[i]);
+          if (abs > maxVal) maxVal = abs;
+        }
+        if (maxVal < 0.012) {
+          return;
+        }
+
+        const pcm16 = new Int16Array(downsampled.length);
+        for (let i = 0; i < downsampled.length; i++) {
+          const s = Math.max(-1, Math.min(1, downsampled[i]));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+
+        const base64 = this._int16ToBase64(pcm16);
+        this._wsSend({
+          type: 'WS_AUDIO',
+          roomId: this.roomId,
+          fromUserId: this.userId,
+          pcm: base64,
+          sampleRate: 16000
+        });
+      };
+
+      // Connect to silent gain to keep onaudioprocess running without local feedback
+      this._relaySilentGain = this.audioCtx.createGain();
+      this._relaySilentGain.gain.value = 0;
+      this._relayAudioSource.connect(this._relayAudioProcessor);
+      this._relayAudioProcessor.connect(this._relaySilentGain);
+      this._relaySilentGain.connect(this.audioCtx.destination);
+    } catch (err) {
+      this.log(`_startAudioRelay error: ${err.message}`, 'warn');
+    }
+  }
+
+  _stopAudioRelay() {
+    this._audioRelayActive = false;
+    if (this._relayAudioProcessor) {
+      try { this._relayAudioProcessor.disconnect(); } catch (e) {}
+      this._relayAudioProcessor = null;
+    }
+    if (this._relayAudioSource) {
+      try { this._relayAudioSource.disconnect(); } catch (e) {}
+      this._relayAudioSource = null;
+    }
+    if (this._relaySilentGain) {
+      try { this._relaySilentGain.disconnect(); } catch (e) {}
+      this._relaySilentGain = null;
+    }
+  }
+
+  _downsampleAudio(buffer, fromRate, toRate) {
+    if (fromRate === toRate) return buffer;
+    const ratio = fromRate / toRate;
+    const newLength = Math.round(buffer.length / ratio);
+    const result = new Float32Array(newLength);
+    let offsetResult = 0;
+    let offsetBuffer = 0;
+    while (offsetResult < result.length) {
+      const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+      let accum = 0, count = 0;
+      for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+        accum += buffer[i];
+        count++;
+      }
+      result[offsetResult] = count > 0 ? accum / count : 0;
+      offsetResult++;
+      offsetBuffer = nextOffsetBuffer;
+    }
+    return result;
+  }
+
+  _int16ToBase64(int16Array) {
+    const bytes = new Uint8Array(int16Array.buffer, int16Array.byteOffset, int16Array.byteLength);
+    let binary = '';
+    const len = bytes.byteLength;
+    const chunkSize = 0x8000;
+    for (let i = 0; i < len; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunkSize, len)));
+    }
+    return btoa(binary);
+  }
+
+  _base64ToInt16(base64) {
+    const binary = atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+  }
+
+  _renderRelayAudio(base64pcm, sampleRate = 16000) {
+    if (this._destroyed || this.isP2PConnected) return;
+
+    try {
+      if (!this._remoteAudioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        this._remoteAudioCtx = new Ctx();
+      }
+      if (this._remoteAudioCtx.state === 'suspended') {
+        this._remoteAudioCtx.resume().catch(() => {});
+      }
+
+      const pcm16 = this._base64ToInt16(base64pcm);
+      if (!pcm16 || pcm16.length === 0) return;
+
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) {
+        float32[i] = pcm16[i] / 32768.0;
+      }
+
+      const buffer = this._remoteAudioCtx.createBuffer(1, float32.length, sampleRate);
+      buffer.getChannelData(0).set(float32);
+
+      const source = this._remoteAudioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this._remoteAudioCtx.destination);
+
+      const now = this._remoteAudioCtx.currentTime;
+      if (!this._nextAudioPlayTime || this._nextAudioPlayTime < now) {
+        this._nextAudioPlayTime = now + 0.02; // 20ms jitter buffer
+      }
+
+      source.start(this._nextAudioPlayTime);
+      this._nextAudioPlayTime += buffer.duration;
+
+      // Update voice activity indicator for remote friend!
+      this.callbacks.onVoiceActivity('remote', true);
+      if (this._remoteVadTimeout) clearTimeout(this._remoteVadTimeout);
+      this._remoteVadTimeout = setTimeout(() => {
+        this.callbacks.onVoiceActivity('remote', false);
+      }, 250);
+    } catch (e) {
+      console.warn('[FlixParty] Audio relay render error:', e);
+    }
+  }
+
   // ── Signaling Send ────────────────────────────────────────────────────────────
 
   _sendSignaling(payload) {
@@ -839,6 +1113,19 @@ class FlixWebRTCManager {
     this._destroyed = true;
     this._clearWatchdog();
     this._stopVideoRelay();
+    this._stopAudioRelay();
+    if (this._remoteAudioCtx) {
+      try { this._remoteAudioCtx.close(); } catch (e) {}
+      this._remoteAudioCtx = null;
+    }
+    if (this.audioCtx) {
+      try { this.audioCtx.close(); } catch (e) {}
+      this.audioCtx = null;
+    }
+    if (this._remoteVadTimeout) {
+      clearTimeout(this._remoteVadTimeout);
+      this._remoteVadTimeout = null;
+    }
     if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null; }
     if (this._pingInterval) { clearInterval(this._pingInterval); this._pingInterval = null; }
     if (this.vadInterval) { clearInterval(this.vadInterval); this.vadInterval = null; }

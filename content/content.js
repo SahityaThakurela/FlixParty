@@ -149,6 +149,11 @@
           });
         }
       },
+      onUnlockAudio: () => {
+        if (webrtcManager) {
+          webrtcManager.resumeAudioContext();
+        }
+      },
       onLeaveParty: () => {
         leaveParty();
       }

@@ -25,6 +25,7 @@ class FlixPartySidebar {
     this.onForceSync = options.onForceSync || (() => {});
     this.onControlModeChange = options.onControlModeChange || (() => {});
     this.onLeaveParty = options.onLeaveParty || (() => {});
+    this.onUnlockAudio = options.onUnlockAudio || (() => {});
 
     this.init();
   }
@@ -420,6 +421,28 @@ class FlixPartySidebar {
           border-radius: 4px;
           font-size: 11px;
           font-weight: 500;
+        }
+
+        .audio-unmute-badge {
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          background: #E50914;
+          color: #FFF;
+          border: none;
+          padding: 3px 8px;
+          border-radius: 12px;
+          font-size: 10px;
+          font-weight: 600;
+          cursor: pointer;
+          z-index: 10;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+          transition: transform 0.15s, background 0.15s;
+        }
+
+        .audio-unmute-badge:hover {
+          background: #F40612;
+          transform: scale(1.06);
         }
 
         /* Media Controls */
@@ -1088,6 +1111,8 @@ class FlixPartySidebar {
             <!-- Remote Friend Video -->
             <div class="video-tile" id="remoteTile">
               <video id="remoteVideo" autoplay playsinline></video>
+              <audio id="remoteAudio" autoplay playsinline></audio>
+              <button class="audio-unmute-badge" id="unmuteAudioBadge" style="display:none;" title="Click to unmute">🔊 Click to Unmute</button>
               <div class="tile-placeholder" id="remotePlaceholder">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 <span>Waiting for friend...</span>
@@ -1246,9 +1271,25 @@ class FlixPartySidebar {
     $('layoutStacked')?.addEventListener('click', () => setVideoLayout('stacked'));
     $('layoutPiP')?.addEventListener('click', () => setVideoLayout('pip'));
 
+    // Global unlock handler: first interaction unlocks audio on autoplay-restricted pages
+    const unlockUserGesture = () => {
+      this.unlockAudio();
+    };
+    document.addEventListener('click', unlockUserGesture, { capture: true });
+    document.addEventListener('keydown', unlockUserGesture, { capture: true });
+    this.container.addEventListener('click', unlockUserGesture);
+
+    // Audio unmute badge click
+    $('unmuteAudioBadge')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.unlockAudio();
+      this.showToast('Audio unmuted!');
+    });
+
     // Media Controls
     const micBtn = $('micBtn');
     micBtn.addEventListener('click', () => {
+      this.unlockAudio();
       const isActive = this.onToggleMic();
       micBtn.classList.toggle('disabled', !isActive);
       micBtn.style.background = isActive ? '' : '#EF4444';
@@ -1257,6 +1298,7 @@ class FlixPartySidebar {
 
     const cameraBtn = $('cameraBtn');
     cameraBtn.addEventListener('click', () => {
+      this.unlockAudio();
       const isActive = this.onToggleVideo();
       cameraBtn.classList.toggle('disabled', !isActive);
       cameraBtn.style.background = isActive ? '' : '#EF4444';
@@ -1619,20 +1661,46 @@ class FlixPartySidebar {
     }
   }
 
+  unlockAudio() {
+    const audio = this.shadow?.getElementById('remoteAudio');
+    if (audio) {
+      audio.muted = false;
+      audio.play().catch(() => {});
+    }
+    const video = this.shadow?.getElementById('remoteVideo');
+    if (video) {
+      video.muted = false;
+      video.play().catch(() => {});
+    }
+    const badge = this.shadow?.getElementById('unmuteAudioBadge');
+    if (badge) badge.style.display = 'none';
+
+    if (this.onUnlockAudio) {
+      this.onUnlockAudio();
+    }
+  }
+
   setRemoteStream(stream) {
     const video = this.shadow.getElementById('remoteVideo');
+    const audio = this.shadow.getElementById('remoteAudio');
     const placeholder = this.shadow.getElementById('remotePlaceholder');
+    const badge = this.shadow.getElementById('unmuteAudioBadge');
+
     if (video) {
       video.srcObject = stream;
       if (placeholder) placeholder.style.display = 'none';
       video.style.display = 'block';
-      const playPromise = video.play();
+      video.play().catch(() => {});
+    }
+
+    if (audio) {
+      audio.srcObject = stream;
+      audio.muted = false;
+      const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // If browser autoplay with audio is restricted, start muted and unmute on first click
-          video.muted = true;
-          video.play().catch(console.warn);
-          window.addEventListener('click', () => { video.muted = false; }, { once: true });
+        playPromise.catch((err) => {
+          console.warn('[FlixParty] Remote audio autoplay restricted by browser:', err);
+          if (badge) badge.style.display = 'block';
         });
       }
     }
