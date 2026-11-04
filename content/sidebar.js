@@ -12,6 +12,7 @@ class FlixPartySidebar {
     this.controlMode = options.controlMode || 'everyone'; // 'everyone' | 'host_only'
     this.unreadCount = 0;
     this.lastSystemMsg = ''; // Prevent duplicate system messages
+    this.activeReply = null; // WhatsApp-style reply context: { sender, text }
 
     // Callbacks to external controller
     this.onSendMessage = options.onSendMessage || (() => {});
@@ -525,7 +526,8 @@ class FlixPartySidebar {
         .chat-msg {
           display: flex;
           flex-direction: column;
-          max-width: 85%;
+          max-width: 88%;
+          position: relative;
         }
 
         .chat-msg.self {
@@ -541,8 +543,69 @@ class FlixPartySidebar {
         .chat-msg-header {
           font-size: 10px;
           color: #888;
-          margin-bottom: 2px;
+          margin-bottom: 3px;
           padding: 0 4px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .chat-msg.self .chat-msg-header {
+          flex-direction: row-reverse;
+        }
+
+        .chat-msg-sender {
+          font-weight: 600;
+          color: #AAA;
+        }
+
+        .chat-msg.self .chat-msg-sender {
+          color: #FF7B7B;
+        }
+
+        .chat-msg-time {
+          font-size: 9px;
+          color: #666;
+          font-weight: normal;
+        }
+
+        .chat-bubble-container {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          position: relative;
+          max-width: 100%;
+        }
+
+        .chat-msg.self .chat-bubble-container {
+          flex-direction: row-reverse;
+        }
+
+        .msg-reply-btn {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #A3A3A3;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: all 0.15s ease;
+          flex-shrink: 0;
+        }
+
+        .chat-msg:hover .msg-reply-btn {
+          opacity: 1;
+        }
+
+        .msg-reply-btn:hover {
+          background: #E50914;
+          color: #FFF;
+          border-color: #E50914;
+          transform: scale(1.12);
         }
 
         .chat-bubble {
@@ -566,6 +629,51 @@ class FlixPartySidebar {
           border-bottom-left-radius: 2px;
         }
 
+        /* Quoted message inside bubble (WhatsApp style tag) */
+        .chat-reply-quote {
+          display: flex;
+          background: rgba(0, 0, 0, 0.35);
+          border-radius: 6px;
+          overflow: hidden;
+          margin-bottom: 6px;
+          border-left: 3px solid #FF4D4D;
+          user-select: none;
+        }
+
+        .chat-msg.self .chat-reply-quote {
+          background: rgba(0, 0, 0, 0.25);
+          border-left-color: #FFFFFF;
+        }
+
+        .reply-quote-body {
+          padding: 4px 8px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+        }
+
+        .reply-quote-sender {
+          font-weight: 700;
+          font-size: 10.5px;
+          color: #FF7B7B;
+          line-height: 1.2;
+        }
+
+        .chat-msg.self .reply-quote-sender {
+          color: #FFF;
+        }
+
+        .reply-quote-text {
+          font-size: 11px;
+          color: #DDD;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 220px;
+          line-height: 1.25;
+        }
+
         /* Large Emojis in Chat (when message is emoji-only) */
         .chat-msg .chat-bubble.emoji-only {
           background: transparent !important;
@@ -575,19 +683,19 @@ class FlixPartySidebar {
           border-radius: 0 !important;
         }
 
-        .chat-msg .chat-bubble.single-emoji {
+        .chat-msg .chat-bubble.single-emoji .chat-bubble-text {
           font-size: 46px !important;
           line-height: 1.1 !important;
           filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
         }
 
-        .chat-msg .chat-bubble.few-emojis {
+        .chat-msg .chat-bubble.few-emojis .chat-bubble-text {
           font-size: 34px !important;
           line-height: 1.2 !important;
           filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4));
         }
 
-        .chat-msg .chat-bubble.emoji-only:not(.single-emoji):not(.few-emojis) {
+        .chat-msg .chat-bubble.emoji-only:not(.single-emoji):not(.few-emojis) .chat-bubble-text {
           font-size: 26px !important;
           line-height: 1.3 !important;
           filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
@@ -629,6 +737,68 @@ class FlixPartySidebar {
 
         .emoji-btn:active {
           transform: scale(0.95);
+        }
+
+        /* Reply Preview Bar above input (WhatsApp style tag) */
+        .chat-reply-preview {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 6px 12px;
+          background: rgba(26, 26, 26, 0.95);
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          border-left: 3px solid #E50914;
+          gap: 8px;
+          animation: slideUpReply 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideUpReply {
+          from { transform: translateY(8px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        .reply-preview-body {
+          flex: 1;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+        }
+
+        .reply-preview-sender {
+          font-size: 11px;
+          font-weight: 700;
+          color: #FF7B7B;
+          line-height: 1.2;
+        }
+
+        .reply-preview-text {
+          font-size: 11px;
+          color: #AAA;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 270px;
+          line-height: 1.2;
+        }
+
+        .reply-cancel-btn {
+          background: transparent;
+          border: none;
+          color: #888;
+          cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.15s, background 0.15s;
+          flex-shrink: 0;
+        }
+
+        .reply-cancel-btn:hover {
+          color: #FFF;
+          background: rgba(255, 255, 255, 0.1);
         }
 
         /* Chat Input */
@@ -823,6 +993,17 @@ class FlixPartySidebar {
             <button class="emoji-btn" data-emoji="🔥">🔥</button>
           </div>
 
+          <!-- WhatsApp-style Reply Preview Bar (Tag context) -->
+          <div class="chat-reply-preview" id="chatReplyPreview" style="display: none;">
+            <div class="reply-preview-body">
+              <div class="reply-preview-sender" id="replyPreviewSender">Replying to Friend</div>
+              <div class="reply-preview-text" id="replyPreviewText">Message preview</div>
+            </div>
+            <button type="button" class="reply-cancel-btn" id="cancelReplyBtn" title="Cancel reply">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+
           <!-- Chat Input Form -->
           <form class="chat-input-bar" id="chatForm">
             <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." maxlength="300" autocomplete="off" />
@@ -937,16 +1118,30 @@ class FlixPartySidebar {
     const chatInput = $('chatInput');
     const chatForm = $('chatForm');
     const sendBtn = $('sendBtn');
+    const chatReplyPreview = $('chatReplyPreview');
+    const cancelReplyBtn = $('cancelReplyBtn');
+
+    const cancelReply = () => {
+      this.activeReply = null;
+      if (chatReplyPreview) chatReplyPreview.style.display = 'none';
+      if (chatInput) chatInput.placeholder = 'Type a message...';
+    };
+
+    if (cancelReplyBtn) {
+      cancelReplyBtn.addEventListener('click', cancelReply);
+    }
 
     const send = () => {
       const text = chatInput.value.trim();
       if (text) {
-        this.onSendMessage(text);
-        this.addChatMessage('You', text, true);
+        const replyContext = this.activeReply;
+        this.onSendMessage(text, replyContext);
+        this.addChatMessage('You', text, true, replyContext, Date.now());
         if (this.isEmojiOnly(text)) {
           this.animateFloatingEmoji(text);
         }
         chatInput.value = '';
+        cancelReply();
       }
     };
 
@@ -980,9 +1175,13 @@ class FlixPartySidebar {
       return e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter' || e.keyCode === 13 || e.which === 13;
     };
 
-    // Keydown handling for Enter
+    // Keydown handling for Enter & Escape
     chatInput.addEventListener('keydown', (e) => {
       stopKeyLeaking(e);
+      if (e.key === 'Escape') {
+        cancelReply();
+        return;
+      }
       if (isEnterKey(e) && !e.shiftKey) {
         e.preventDefault();
         send();
@@ -1200,7 +1399,23 @@ class FlixPartySidebar {
     return match ? match.length : 0;
   }
 
-  addChatMessage(sender, text, isSelf = false) {
+  setReplyTo(sender, text) {
+    this.activeReply = { sender, text };
+    const preview = this.shadow.getElementById('chatReplyPreview');
+    const senderEl = this.shadow.getElementById('replyPreviewSender');
+    const textEl = this.shadow.getElementById('replyPreviewText');
+    const chatInput = this.shadow.getElementById('chatInput');
+
+    if (senderEl) senderEl.textContent = `Replying to ${sender}`;
+    if (textEl) textEl.textContent = text.length > 50 ? text.substring(0, 50) + '...' : text;
+    if (preview) preview.style.display = 'flex';
+    if (chatInput) {
+      chatInput.placeholder = `Reply to ${sender}...`;
+      chatInput.focus();
+    }
+  }
+
+  addChatMessage(sender, text, isSelf = false, replyTo = null, timestamp = null) {
     const list = this.shadow.getElementById('chatList');
     if (!list) return;
 
@@ -1218,12 +1433,52 @@ class FlixPartySidebar {
       }
     }
 
+    // Format timestamp: e.g. "11:28 AM"
+    const date = timestamp ? new Date(timestamp) : new Date();
+    const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    // WhatsApp-style quoted reply snippet
+    let replyQuoteHTML = '';
+    if (replyTo && replyTo.text) {
+      const quoteSender = this.escapeHTML(replyTo.sender || 'Friend');
+      const quoteSnippet = this.escapeHTML(replyTo.text);
+      replyQuoteHTML = `
+        <div class="chat-reply-quote">
+          <div class="reply-quote-body">
+            <div class="reply-quote-sender">${quoteSender}</div>
+            <div class="reply-quote-text">${quoteSnippet}</div>
+          </div>
+        </div>
+      `;
+    }
+
     const msg = document.createElement('div');
     msg.className = `chat-msg ${isSelf ? 'self' : 'remote'}`;
     msg.innerHTML = `
-      <div class="chat-msg-header">${this.escapeHTML(sender)}</div>
-      <div class="chat-bubble ${emojiClass}">${this.escapeHTML(text)}</div>
+      <div class="chat-msg-header">
+        <span class="chat-msg-sender">${this.escapeHTML(sender)}</span>
+        <span class="chat-msg-time">${timeStr}</span>
+      </div>
+      <div class="chat-bubble-container">
+        <div class="chat-bubble ${emojiClass}">
+          ${replyQuoteHTML}
+          <div class="chat-bubble-text">${this.escapeHTML(text)}</div>
+        </div>
+        <button type="button" class="msg-reply-btn" title="Reply to ${this.escapeHTML(sender)}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 14 4 9 9 4"></polyline><path d="M20 20v-7a4 4 0 0 0-4-4H4"></path></svg>
+        </button>
+      </div>
     `;
+
+    // Wire up reply button on this message
+    const replyBtn = msg.querySelector('.msg-reply-btn');
+    if (replyBtn) {
+      replyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.setReplyTo(sender, text);
+      });
+    }
+
     list.appendChild(msg);
     list.scrollTop = list.scrollHeight;
 

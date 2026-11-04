@@ -83,12 +83,14 @@
       roomId: currentRoomId,
       isHost,
       controlMode,
-      onSendMessage: (text) => {
+      onSendMessage: (text, replyTo) => {
         if (webrtcManager) {
           webrtcManager.sendData({
             type: 'CHAT',
             text,
-            username
+            username,
+            replyTo: replyTo || null,
+            timestamp: Date.now()
           });
         }
       },
@@ -286,7 +288,7 @@
     switch (data.type) {
       case 'CHAT':
         if (sidebar) {
-          sidebar.addChatMessage(data.username || 'Friend', data.text, false);
+          sidebar.addChatMessage(data.username || 'Friend', data.text, false, data.replyTo || null, data.timestamp || null);
           if (sidebar.isEmojiOnly && sidebar.isEmojiOnly(data.text)) {
             sidebar.animateFloatingEmoji(data.text);
           }
@@ -296,7 +298,7 @@
       case 'REACTION':
         if (sidebar && data.emoji) {
           sidebar.animateFloatingEmoji(data.emoji);
-          sidebar.addChatMessage(data.username || 'Friend', data.emoji, false);
+          sidebar.addChatMessage(data.username || 'Friend', data.emoji, false, null, data.timestamp || null);
         }
         break;
 
