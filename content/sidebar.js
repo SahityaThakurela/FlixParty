@@ -1504,7 +1504,7 @@ class FlixPartySidebar {
         this.onSendMessage(text, replyContext);
         this.addChatMessage(this.username || 'You', text, true, replyContext, Date.now());
         if (this.isEmojiOnly(text)) {
-          this.animateFloatingEmoji(text);
+          this.animateFloatingEmoji(text, this.username || 'You', true);
         }
         chatInput.value = '';
         cancelReply();
@@ -1612,7 +1612,7 @@ class FlixPartySidebar {
           this.onSendMessage(emoji);
         }
         this.addChatMessage(this.username || 'You', emoji, true);
-        this.animateFloatingEmoji(emoji);
+        this.animateFloatingEmoji(emoji, this.username || 'You', true);
       });
     });
 
@@ -2026,119 +2026,136 @@ class FlixPartySidebar {
     }, 2500);
   }
 
-  animateFloatingEmoji(emoji) {
+  animateFloatingEmoji(emoji, senderName, isSelf) {
     const primaryEmoji = (emoji || '🍿').trim();
+    const displayName = (senderName || (isSelf ? this.username : (this.remoteUsername || 'Friend')) || 'You').trim();
 
-    // Ensure vaporization keyframe animation exists
-    if (!this.shadow.getElementById('flixVaporKeyframes')) {
+    // Ensure reaction keyframe animation and styles exist
+    if (!this.shadow.getElementById('flixReactionStyles')) {
       const style = document.createElement('style');
-      style.id = 'flixVaporKeyframes';
+      style.id = 'flixReactionStyles';
       style.textContent = `
-        @keyframes flixVaporStream {
+        @keyframes flixFloatReaction {
           0% {
             opacity: 0;
-            transform: translate3d(0, 0, 0) scale(0.35) rotate(0deg);
-            filter: blur(1px) drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+            transform: translate3d(0, 0, 0) scale(0.4);
           }
-          14% {
-            opacity: 0.95;
-            transform: translate3d(var(--sway-1), -65px, 0) scale(1.15) rotate(var(--rot-1));
-            filter: blur(0px) drop-shadow(0 0 12px rgba(168, 216, 74, 0.8)) drop-shadow(0 0 20px rgba(255, 255, 255, 0.45));
-          }
-          38% {
+          10% {
             opacity: 1;
-            transform: translate3d(var(--sway-2), -170px, 0) scale(1.02) rotate(var(--rot-2));
-            filter: blur(0px) drop-shadow(0 0 14px rgba(168, 216, 74, 0.65));
+            transform: translate3d(var(--x-mid), -70px, 0) scale(1.18);
           }
-          65% {
-            opacity: 0.88;
-            transform: translate3d(var(--sway-3), -295px, 0) scale(1.12) rotate(var(--rot-3));
-            filter: blur(1.5px) drop-shadow(0 0 18px rgba(168, 216, 74, 0.5));
+          20% {
+            opacity: 1;
+            transform: translate3d(var(--x-sway1), -150px, 0) scale(1.0);
           }
-          88% {
-            opacity: 0.45;
-            transform: translate3d(var(--sway-4), -410px, 0) scale(1.28) rotate(var(--rot-4));
-            filter: blur(3.5px) drop-shadow(0 0 24px rgba(255, 255, 255, 0.3));
+          60% {
+            opacity: 0.96;
+            transform: translate3d(var(--x-sway2), -330px, 0) scale(0.98);
+          }
+          82% {
+            opacity: 0.75;
+            transform: translate3d(var(--x-sway3), -460px, 0) scale(0.92);
           }
           100% {
             opacity: 0;
-            transform: translate3d(var(--sway-end), -490px, 0) scale(1.45) rotate(var(--rot-end));
-            filter: blur(7px) drop-shadow(0 0 30px rgba(255, 255, 255, 0));
+            transform: translate3d(var(--x-end), -540px, 0) scale(0.84);
           }
+        }
+
+        .flix-reaction-floater {
+          position: fixed;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 2px;
+          pointer-events: none;
+          z-index: 2147483647;
+          user-select: none;
+          will-change: transform, opacity;
+          animation: flixFloatReaction 2.4s cubic-bezier(0.18, 0.89, 0.32, 1) forwards;
+        }
+
+        .flix-reaction-emoji {
+          font-size: 54px;
+          line-height: 1.1;
+          filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.85));
+          transform-origin: center center;
+        }
+
+        .flix-reaction-badge {
+          font-size: 11px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 12px;
+          white-space: nowrap;
+          max-width: 130px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          letter-spacing: 0.3px;
+          background: rgba(13, 15, 17, 0.94);
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+        }
+
+        .flix-reaction-badge.self {
+          color: #A8D84A;
+          border: 1px solid rgba(168, 216, 74, 0.55);
+        }
+
+        .flix-reaction-badge.remote {
+          color: #60A5FA;
+          border: 1px solid rgba(96, 165, 250, 0.55);
         }
       `;
       this.shadow.appendChild(style);
     }
 
-    // Position beside the chat sidebar (sidebar width is 385px from right edge)
-    // When sidebar is collapsed, position near floating pill
-    const baseRight = this.isCollapsed ? 45 : 405;
+    // Position beside the chat sidebar (sidebar is 385px from right)
+    const baseRight = this.isCollapsed ? 45 : 410;
 
-    // Launch a chimney stream of 14 glowing vaporizing emojis
-    const particleCount = 14;
-    for (let i = 0; i < particleCount; i++) {
-      // Stagger delays across ~750ms to create a continuous rising vapor stream
-      const delay = Math.round(i * 52 + (Math.random() * 26));
+    // Organic horizontal stagger so spammed emojis float side-by-side naturally
+    const xSpread = Math.round((Math.random() - 0.5) * 60);
+    const spawnRight = baseRight + xSpread;
+    const spawnBottom = 85;
 
-      // Varied particle sizes: micro vapor embers (18px) to medium floaters (38px)
-      const size = Math.floor(18 + Math.random() * 22);
+    // Dynamic gentle sinusoidal sway path
+    const swayDir = Math.random() > 0.5 ? 1 : -1;
+    const swayAmp = 14 + Math.random() * 20;
+    const xMid = (swayDir * swayAmp * 0.4).toFixed(1) + 'px';
+    const xSway1 = (-swayDir * swayAmp * 0.7).toFixed(1) + 'px';
+    const xSway2 = (swayDir * swayAmp * 1.0).toFixed(1) + 'px';
+    const xSway3 = (-swayDir * swayAmp * 0.5).toFixed(1) + 'px';
+    const xEnd = (swayDir * swayAmp * 1.2).toFixed(1) + 'px';
 
-      // Duration for each particle between 2.1s and 2.7s
-      const duration = (2.1 + Math.random() * 0.6).toFixed(2);
+    // Create single lightweight container
+    const floater = document.createElement('div');
+    floater.className = 'flix-reaction-floater';
+    floater.style.right = `${spawnRight}px`;
+    floater.style.bottom = `${spawnBottom}px`;
+    floater.style.setProperty('--x-mid', xMid);
+    floater.style.setProperty('--x-sway1', xSway1);
+    floater.style.setProperty('--x-sway2', xSway2);
+    floater.style.setProperty('--x-sway3', xSway3);
+    floater.style.setProperty('--x-end', xEnd);
 
-      // Horizontal spread beside the chat panel (within 45px range)
-      const xSpread = Math.round((Math.random() - 0.5) * 45);
-      const spawnRight = baseRight + xSpread;
+    const emojiEl = document.createElement('div');
+    emojiEl.className = 'flix-reaction-emoji';
+    emojiEl.textContent = primaryEmoji;
 
-      // Starting bottom near the reaction/input bar
-      const spawnBottom = Math.round(75 + (Math.random() * 30 - 15));
+    const badgeEl = document.createElement('div');
+    badgeEl.className = `flix-reaction-badge ${isSelf ? 'self' : 'remote'}`;
+    badgeEl.textContent = displayName;
 
-      // Organic sway simulation for rising heat/vapor
-      const swayDir = Math.random() > 0.5 ? 1 : -1;
-      const swayAmp = 18 + Math.random() * 32;
-      const sway1 = (swayDir * swayAmp * 0.4).toFixed(1) + 'px';
-      const sway2 = (-swayDir * swayAmp * 0.75).toFixed(1) + 'px';
-      const sway3 = (swayDir * swayAmp * 1.1).toFixed(1) + 'px';
-      const sway4 = (-swayDir * swayAmp * 0.6).toFixed(1) + 'px';
-      const swayEnd = (swayDir * swayAmp * 1.3).toFixed(1) + 'px';
+    floater.appendChild(emojiEl);
+    floater.appendChild(badgeEl);
 
-      const rot1 = ((Math.random() - 0.5) * 20).toFixed(1) + 'deg';
-      const rot2 = ((Math.random() - 0.5) * 35).toFixed(1) + 'deg';
-      const rot3 = ((Math.random() - 0.5) * 50).toFixed(1) + 'deg';
-      const rot4 = ((Math.random() - 0.5) * 70).toFixed(1) + 'deg';
-      const rotEnd = ((Math.random() - 0.5) * 90).toFixed(1) + 'deg';
+    // Auto cleanup on animation end
+    floater.addEventListener('animationend', () => floater.remove());
+    setTimeout(() => {
+      if (floater.parentElement) floater.remove();
+    }, 2600);
 
-      setTimeout(() => {
-        const floater = document.createElement('div');
-        floater.textContent = primaryEmoji;
-        floater.style.cssText = `
-          position: fixed;
-          bottom: ${spawnBottom}px;
-          right: ${spawnRight}px;
-          font-size: ${size}px;
-          line-height: 1;
-          pointer-events: none;
-          z-index: 2147483647;
-          user-select: none;
-          will-change: transform, opacity, filter;
-          --sway-1: ${sway1};
-          --sway-2: ${sway2};
-          --sway-3: ${sway3};
-          --sway-4: ${sway4};
-          --sway-end: ${swayEnd};
-          --rot-1: ${rot1};
-          --rot-2: ${rot2};
-          --rot-3: ${rot3};
-          --rot-4: ${rot4};
-          --rot-end: ${rotEnd};
-          animation: flixVaporStream ${duration}s cubic-bezier(0.2, 0.75, 0.35, 1) forwards;
-        `;
-        this.shadow.appendChild(floater);
-        setTimeout(() => {
-          if (floater.parentElement) floater.remove();
-        }, Math.round(parseFloat(duration) * 1000) + 120);
-      }, delay);
-    }
+    this.shadow.appendChild(floater);
   }
 
   escapeHTML(str) {

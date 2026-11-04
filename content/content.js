@@ -127,7 +127,8 @@
           webrtcManager.sendData({
             type: 'REACTION',
             emoji,
-            username
+            username: username || (sidebar ? sidebar.username : 'Friend'),
+            timestamp: Date.now()
           });
         }
       },
@@ -334,17 +335,19 @@
     switch (data.type) {
       case 'CHAT':
         if (sidebar) {
-          sidebar.addChatMessage(data.username || remoteUsername || 'Friend', data.text, false, data.replyTo || null, data.timestamp || null);
+          const senderName = data.username || remoteUsername || 'Friend';
+          sidebar.addChatMessage(senderName, data.text, false, data.replyTo || null, data.timestamp || null);
           if (sidebar.isEmojiOnly && sidebar.isEmojiOnly(data.text)) {
-            sidebar.animateFloatingEmoji(data.text);
+            sidebar.animateFloatingEmoji(data.text, senderName, false);
           }
         }
         break;
 
       case 'REACTION':
         if (sidebar && data.emoji) {
-          sidebar.animateFloatingEmoji(data.emoji);
-          sidebar.addChatMessage(data.username || remoteUsername || 'Friend', data.emoji, false, null, data.timestamp || null);
+          const senderName = data.username || remoteUsername || 'Friend';
+          sidebar.animateFloatingEmoji(data.emoji, senderName, false);
+          sidebar.addChatMessage(senderName, data.emoji, false, null, data.timestamp || null);
         }
         break;
 
