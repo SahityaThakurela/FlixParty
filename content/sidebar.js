@@ -2038,23 +2038,17 @@ class FlixPartySidebar {
         @keyframes flixFloatReaction {
           0% {
             opacity: 0;
-            transform: translate3d(0, 0, 0) scale(0.5);
+            transform: translate3d(0, 0, 0) scale(0.8);
           }
-          8% {
+          12% {
             opacity: 1;
-            transform: translate3d(0, -45px, 0) scale(1.12);
           }
-          16% {
-            opacity: 1;
-            transform: translate3d(0, -100px, 0) scale(1.0);
-          }
-          72% {
+          75% {
             opacity: 0.95;
-            transform: translate3d(var(--x-drift), -390px, 0) scale(1.0);
           }
           100% {
             opacity: 0;
-            transform: translate3d(var(--x-drift), -550px, 0) scale(0.9);
+            transform: translate3d(var(--x-drift), -520px, 0) scale(1.0);
           }
         }
 
@@ -2069,7 +2063,7 @@ class FlixPartySidebar {
           z-index: 2147483647;
           user-select: none;
           will-change: transform, opacity;
-          animation: flixFloatReaction 2.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: flixFloatReaction 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
 
         .flix-reaction-emoji {
