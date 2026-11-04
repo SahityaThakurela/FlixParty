@@ -15,6 +15,7 @@ class FlixPartySidebar {
 
     // Callbacks to external controller
     this.onSendMessage = options.onSendMessage || (() => {});
+    this.onSendReaction = options.onSendReaction || (() => {});
     this.onToggleMic = options.onToggleMic || (() => {});
     this.onToggleVideo = options.onToggleVideo || (() => {});
     this.onForceSync = options.onForceSync || (() => {});
@@ -134,37 +135,39 @@ class FlixPartySidebar {
           border-radius: 10px;
         }
 
-        /* Header */
+        /* Header (Bar 1) */
         .flix-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 14px 16px;
-          background: rgba(26, 26, 26, 0.9);
+          padding: 8px 12px;
+          background: rgba(22, 22, 22, 0.95);
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          gap: 6px;
         }
 
         .flix-brand {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 7px;
+          flex-shrink: 0;
         }
 
         .flix-logo-icon {
-          width: 24px;
-          height: 24px;
+          width: 22px;
+          height: 22px;
           background: #E50914;
-          border-radius: 6px;
+          border-radius: 5px;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 900;
-          font-size: 14px;
+          font-size: 12px;
           color: #FFF;
         }
 
         .flix-title {
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 700;
           letter-spacing: 0.3px;
           background: linear-gradient(90deg, #FFFFFF, #FF7B7B);
@@ -172,19 +175,62 @@ class FlixPartySidebar {
           -webkit-text-fill-color: transparent;
         }
 
-        .flix-actions {
+        .header-right {
           display: flex;
           align-items: center;
           gap: 6px;
+        }
+
+        .status-indicator {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 11px;
+          color: #A3A3A3;
+          background: rgba(255, 255, 255, 0.06);
+          padding: 3px 8px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          transition: background 0.15s, color 0.15s;
+          white-space: nowrap;
+          cursor: pointer;
+        }
+
+        .status-indicator:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: #FFF;
+        }
+
+        .status-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #F59E0B; /* Yellow pending */
+          flex-shrink: 0;
+        }
+
+        .status-dot.connected {
+          background: #10B981; /* Green */
+          box-shadow: 0 0 6px #10B981;
+        }
+
+        .status-dot.error {
+          background: #EF4444; /* Red */
+        }
+
+        .flix-actions {
+          display: flex;
+          align-items: center;
+          gap: 4px;
         }
 
         .icon-btn {
           background: transparent;
           border: none;
           color: #A3A3A3;
-          width: 30px;
-          height: 30px;
-          border-radius: 6px;
+          width: 26px;
+          height: 26px;
+          border-radius: 5px;
           cursor: pointer;
           display: flex;
           align-items: center;
@@ -197,80 +243,35 @@ class FlixPartySidebar {
           color: #FFF;
         }
 
-        /* Room Bar */
+        /* Room Bar (Bar 2 - Combined Room Code & Layout Toggles) */
         .flix-room-bar {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 10px 16px;
-          background: rgba(0, 0, 0, 0.25);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-          font-size: 12px;
+          padding: 6px 10px;
+          background: rgba(12, 12, 12, 0.85);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          font-size: 11px;
         }
 
         .room-tag {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
           background: rgba(255, 255, 255, 0.07);
-          padding: 4px 10px;
-          border-radius: 12px;
+          padding: 3px 8px;
+          border-radius: 6px;
           cursor: pointer;
           font-family: monospace;
           letter-spacing: 0.5px;
           color: #DDD;
+          font-size: 11px;
+          transition: background 0.15s, color 0.15s;
         }
 
         .room-tag:hover {
           background: rgba(255, 255, 255, 0.14);
           color: #FFF;
-        }
-
-        .status-indicator {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
-          color: #A3A3A3;
-        }
-
-        .status-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #F59E0B; /* Yellow pending */
-        }
-
-        .status-dot.connected {
-          background: #10B981; /* Green */
-          box-shadow: 0 0 8px #10B981;
-        }
-
-        .status-dot.error {
-          background: #EF4444; /* Red */
-        }
-
-        /* Video Call Area */
-        .flix-video-section {
-          padding: 10px 14px 12px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(14, 14, 14, 0.5);
-        }
-
-        .video-section-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 8px;
-          padding: 0 2px;
-        }
-
-        .video-section-title {
-          font-size: 11px;
-          font-weight: 600;
-          color: #888;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
         }
 
         .layout-toggle-group {
@@ -286,13 +287,13 @@ class FlixPartySidebar {
           background: transparent;
           border: none;
           color: #888;
-          font-size: 11px;
-          padding: 3px 8px;
+          font-size: 10.5px;
+          padding: 2px 7px;
           border-radius: 4px;
           cursor: pointer;
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 3px;
           transition: all 0.15s ease;
         }
 
@@ -307,10 +308,17 @@ class FlixPartySidebar {
           font-weight: 600;
         }
 
+        /* Video Call Area */
+        .flix-video-section {
+          padding: 8px 10px 10px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(14, 14, 14, 0.5);
+        }
+
         .video-grid {
           position: relative;
           width: 100%;
-          margin-bottom: 10px;
+          margin-bottom: 8px;
           transition: all 0.25s ease;
         }
 
@@ -558,6 +566,33 @@ class FlixPartySidebar {
           border-bottom-left-radius: 2px;
         }
 
+        /* Large Emojis in Chat (when message is emoji-only) */
+        .chat-msg .chat-bubble.emoji-only {
+          background: transparent !important;
+          padding: 2px 4px !important;
+          line-height: 1.15 !important;
+          box-shadow: none !important;
+          border-radius: 0 !important;
+        }
+
+        .chat-msg .chat-bubble.single-emoji {
+          font-size: 46px !important;
+          line-height: 1.1 !important;
+          filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+        }
+
+        .chat-msg .chat-bubble.few-emojis {
+          font-size: 34px !important;
+          line-height: 1.2 !important;
+          filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.4));
+        }
+
+        .chat-msg .chat-bubble.emoji-only:not(.single-emoji):not(.few-emojis) {
+          font-size: 26px !important;
+          line-height: 1.3 !important;
+          filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+        }
+
         .chat-system-log {
           align-self: center;
           font-size: 11px;
@@ -574,21 +609,26 @@ class FlixPartySidebar {
           display: flex;
           align-items: center;
           justify-content: space-around;
-          padding: 6px 12px;
-          background: rgba(24, 24, 24, 0.8);
+          padding: 7px 12px;
+          background: rgba(22, 22, 22, 0.85);
           border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         .emoji-btn {
           background: transparent;
           border: none;
-          font-size: 18px;
+          font-size: 22px;
           cursor: pointer;
-          transition: transform 0.15s;
+          transition: transform 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          user-select: none;
         }
 
         .emoji-btn:hover {
-          transform: scale(1.3);
+          transform: scale(1.35);
+        }
+
+        .emoji-btn:active {
+          transform: scale(0.95);
         }
 
         /* Chat Input */
@@ -669,58 +709,56 @@ class FlixPartySidebar {
 
       <!-- Main Sidebar Panel -->
       <div class="flix-wrapper" id="sidebarWrapper">
-        <!-- Header -->
+        <!-- Bar 1: Brand & Status & Header Actions -->
         <div class="flix-header">
           <div class="flix-brand">
             <div class="flix-logo-icon">▶</div>
             <div class="flix-title">FlixParty</div>
           </div>
-          <div class="flix-actions">
-            <button class="icon-btn" id="sidebarSettingsBtn" title="Settings (Server URL & Audio/Video)">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            </button>
-            <button class="icon-btn" id="collapseBtn" title="Collapse Sidebar">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </button>
-            <button class="icon-btn" id="closeBtn" title="Leave Watch Party">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
+          <div class="header-right">
+            <div class="status-indicator" id="statusIndicatorBox" style="cursor: pointer;" title="Click to open Settings">
+              <span class="status-dot" id="statusDot"></span>
+              <span id="statusText">Connecting</span>
+            </div>
+            <div class="flix-actions">
+              <button class="icon-btn" id="sidebarSettingsBtn" title="Settings (Server URL & Audio/Video)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              </button>
+              <button class="icon-btn" id="collapseBtn" title="Collapse Sidebar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </button>
+              <button class="icon-btn" id="closeBtn" title="Leave Watch Party">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
           </div>
         </div>
 
-        <!-- Room Information & Status -->
+        <!-- Bar 2: Room Code & Video Layout Switches -->
         <div class="flix-room-bar">
           <div class="room-tag" id="copyRoomTag" title="Click to copy Room Code">
             <span>Room:</span>
             <strong id="roomCodeDisplay">${this.roomId || 'Connecting...'}</strong>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
           </div>
-          <div class="status-indicator" id="statusIndicatorBox" style="cursor: pointer;" title="Click to open Settings">
-            <span class="status-dot" id="statusDot"></span>
-            <span id="statusText">Connecting</span>
+          <div class="layout-toggle-group">
+            <button class="layout-btn active" id="layoutSideBySide" data-layout="side" title="Side-by-Side (Landscape)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/></svg>
+              <span>Side</span>
+            </button>
+            <button class="layout-btn" id="layoutStacked" data-layout="stacked" title="Stacked (Portrait / Big View)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2"/></svg>
+              <span>Stacked</span>
+            </button>
+            <button class="layout-btn" id="layoutPiP" data-layout="pip" title="Focus Mode (Picture-in-Picture)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="12" y="12" width="7" height="7" rx="1" fill="currentColor"/></svg>
+              <span>Focus</span>
+            </button>
           </div>
         </div>
 
         <!-- Video Call Section -->
         <div class="flix-video-section">
-          <div class="video-section-header">
-            <span class="video-section-title">Video Call</span>
-            <div class="layout-toggle-group">
-              <button class="layout-btn active" id="layoutSideBySide" data-layout="side" title="Side-by-Side (Landscape)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="8" height="16" rx="2"/><rect x="13" y="4" width="8" height="16" rx="2"/></svg>
-                <span>Side</span>
-              </button>
-              <button class="layout-btn" id="layoutStacked" data-layout="stacked" title="Stacked (Portrait / Big View)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2"/></svg>
-                <span>Stacked</span>
-              </button>
-              <button class="layout-btn" id="layoutPiP" data-layout="pip" title="Focus Mode (Picture-in-Picture)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="12" y="12" width="7" height="7" rx="1" fill="currentColor"/></svg>
-                <span>Focus</span>
-              </button>
-            </div>
-          </div>
-
           <div class="video-grid layout-side" id="videoGrid">
             <!-- Local User Video -->
             <div class="video-tile" id="localTile">
@@ -905,6 +943,9 @@ class FlixPartySidebar {
       if (text) {
         this.onSendMessage(text);
         this.addChatMessage('You', text, true);
+        if (this.isEmojiOnly(text)) {
+          this.animateFloatingEmoji(text);
+        }
         chatInput.value = '';
       }
     };
@@ -995,11 +1036,15 @@ class FlixPartySidebar {
       blurPlayer();
     });
 
-    // Quick Emojis
+    // Quick Emojis (Triggers large reaction burst & syncs to friend)
     this.shadow.querySelectorAll('.emoji-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const emoji = btn.dataset.emoji;
-        this.onSendMessage(emoji);
+        if (this.onSendReaction) {
+          this.onSendReaction(emoji);
+        } else {
+          this.onSendMessage(emoji);
+        }
         this.addChatMessage('You', emoji, true);
         this.animateFloatingEmoji(emoji);
       });
@@ -1140,15 +1185,44 @@ class FlixPartySidebar {
     }
   }
 
+  isEmojiOnly(str) {
+    if (!str || typeof str !== 'string') return false;
+    const trimmed = str.trim();
+    if (!trimmed) return false;
+    const clean = trimmed.replace(/[\s\uFE0E\uFE0F\u200D\u{1F3FB}-\u{1F3FF}]/gu, '');
+    if (!clean) return false;
+    return /^(\p{Extended_Pictographic}|\p{Emoji_Presentation})+$/u.test(clean);
+  }
+
+  getEmojiCount(str) {
+    if (!str || typeof str !== 'string') return 0;
+    const match = str.match(/\p{Extended_Pictographic}|\p{Emoji_Presentation}/gu);
+    return match ? match.length : 0;
+  }
+
   addChatMessage(sender, text, isSelf = false) {
     const list = this.shadow.getElementById('chatList');
     if (!list) return;
 
+    const isEmoji = this.isEmojiOnly(text);
+    const count = isEmoji ? this.getEmojiCount(text) : 0;
+
+    let emojiClass = '';
+    if (isEmoji) {
+      if (count === 1) {
+        emojiClass = 'emoji-only single-emoji';
+      } else if (count <= 3) {
+        emojiClass = 'emoji-only few-emojis';
+      } else {
+        emojiClass = 'emoji-only';
+      }
+    }
+
     const msg = document.createElement('div');
     msg.className = `chat-msg ${isSelf ? 'self' : 'remote'}`;
     msg.innerHTML = `
-      <div class="chat-msg-header">${sender}</div>
-      <div class="chat-bubble">${this.escapeHTML(text)}</div>
+      <div class="chat-msg-header">${this.escapeHTML(sender)}</div>
+      <div class="chat-bubble ${emojiClass}">${this.escapeHTML(text)}</div>
     `;
     list.appendChild(msg);
     list.scrollTop = list.scrollHeight;
@@ -1187,34 +1261,67 @@ class FlixPartySidebar {
   }
 
   animateFloatingEmoji(emoji) {
-    const floater = document.createElement('div');
-    floater.textContent = emoji;
-    floater.style.cssText = `
-      position: fixed;
-      bottom: 60px;
-      right: ${Math.floor(Math.random() * 80 + 380)}px;
-      font-size: 32px;
-      pointer-events: none;
-      z-index: 2147483647;
-      animation: floatUp 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-    `;
+    const primaryEmoji = (emoji || '🍿').trim();
 
-    // Add keyframe style if not present
-    if (!this.shadow.getElementById('floatingEmojiKeyframe')) {
+    // Ensure burst keyframe animation exists
+    if (!this.shadow.getElementById('flixReactionKeyframes')) {
       const style = document.createElement('style');
-      style.id = 'floatingEmojiKeyframe';
+      style.id = 'flixReactionKeyframes';
       style.textContent = `
-        @keyframes floatUp {
-          0% { transform: translateY(0) scale(0.7); opacity: 1; }
-          50% { transform: translateY(-120px) scale(1.3); opacity: 0.9; }
-          100% { transform: translateY(-240px) scale(1); opacity: 0; }
+        @keyframes flixFloatBurst {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, 30px, 0) scale(0.3) rotate(0deg);
+          }
+          15% {
+            opacity: 1;
+            transform: translate3d(calc(var(--drift) * 0.25), -50px, 0) scale(1.4) rotate(calc(var(--drift) * 0.15deg));
+          }
+          35% {
+            transform: translate3d(calc(var(--drift) * 0.5), -120px, 0) scale(1.15) rotate(calc(var(--drift) * 0.25deg));
+          }
+          70% {
+            opacity: 0.95;
+            transform: translate3d(calc(var(--drift) * 0.8), -240px, 0) scale(1) rotate(calc(var(--drift) * 0.35deg));
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(var(--drift), -360px, 0) scale(0.8) rotate(calc(var(--drift) * 0.5deg));
+          }
         }
       `;
       this.shadow.appendChild(style);
     }
 
-    this.shadow.appendChild(floater);
-    setTimeout(() => floater.remove(), 2100);
+    // Launch a burst of 4 particles with staggered timing and drift for high visibility
+    const particles = [
+      { size: 68, delay: 0, xOffset: 0, drift: (Math.random() - 0.5) * 50 },
+      { size: 48, delay: 100, xOffset: -40, drift: -45 - Math.random() * 30 },
+      { size: 52, delay: 180, xOffset: 40, drift: 45 + Math.random() * 30 },
+      { size: 38, delay: 260, xOffset: (Math.random() - 0.5) * 60, drift: (Math.random() - 0.5) * 90 }
+    ];
+
+    particles.forEach(p => {
+      setTimeout(() => {
+        const floater = document.createElement('div');
+        floater.textContent = primaryEmoji;
+        floater.style.cssText = `
+          position: fixed;
+          bottom: 75px;
+          right: ${Math.floor(220 + p.xOffset + (Math.random() * 60 - 30))}px;
+          font-size: ${p.size}px;
+          line-height: 1;
+          pointer-events: none;
+          z-index: 2147483647;
+          user-select: none;
+          --drift: ${p.drift}px;
+          filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 14px rgba(255, 255, 255, 0.4));
+          animation: flixFloatBurst 2.2s cubic-bezier(0.16, 0.8, 0.25, 1) forwards;
+        `;
+        this.shadow.appendChild(floater);
+        setTimeout(() => floater.remove(), 2300);
+      }, p.delay);
+    });
   }
 
   escapeHTML(str) {

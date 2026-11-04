@@ -92,6 +92,15 @@
           });
         }
       },
+      onSendReaction: (emoji) => {
+        if (webrtcManager) {
+          webrtcManager.sendData({
+            type: 'REACTION',
+            emoji,
+            username
+          });
+        }
+      },
       onToggleMic: () => {
         return webrtcManager ? webrtcManager.toggleAudio() : false;
       },
@@ -278,6 +287,16 @@
       case 'CHAT':
         if (sidebar) {
           sidebar.addChatMessage(data.username || 'Friend', data.text, false);
+          if (sidebar.isEmojiOnly && sidebar.isEmojiOnly(data.text)) {
+            sidebar.animateFloatingEmoji(data.text);
+          }
+        }
+        break;
+
+      case 'REACTION':
+        if (sidebar && data.emoji) {
+          sidebar.animateFloatingEmoji(data.emoji);
+          sidebar.addChatMessage(data.username || 'Friend', data.emoji, false);
         }
         break;
 
