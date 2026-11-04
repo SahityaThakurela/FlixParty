@@ -314,7 +314,7 @@ class FlixPartySidebar {
 
         /* Video Call Area */
         .flix-video-section {
-          padding: 8px 10px 10px;
+          padding: 8px 10px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           background: rgba(13, 15, 17, 0.5);
         }
@@ -322,7 +322,7 @@ class FlixPartySidebar {
         .video-grid {
           position: relative;
           width: 100%;
-          margin-bottom: 8px;
+          margin-bottom: 0;
           transition: all 0.25s ease;
         }
 
@@ -370,8 +370,8 @@ class FlixPartySidebar {
           position: absolute;
           bottom: 10px;
           right: 10px;
-          width: 110px;
-          height: 80px;
+          width: 124px;
+          height: 90px;
           z-index: 2;
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85);
           border: 1.5px solid rgba(255, 255, 255, 0.4);
@@ -420,6 +420,32 @@ class FlixPartySidebar {
           border-radius: 4px;
           font-size: 11px;
           font-weight: 500;
+          max-width: 75%;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        #localLabel {
+          top: 6px;
+          bottom: auto;
+          left: 6px;
+          z-index: 6;
+        }
+
+        .local-mute-badge {
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: #EF4444;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+          z-index: 6;
         }
 
         .audio-unmute-badge {
@@ -444,36 +470,130 @@ class FlixPartySidebar {
           transform: scale(1.06);
         }
 
-        /* Media Controls */
+        /* In-Video Floating Media Controls (Visible on hover of local video tile with glassmorphism theme) */
         .media-controls-bar {
+          position: absolute;
+          bottom: 8px;
+          left: 50%;
+          transform: translateX(-50%) translateY(6px);
           display: flex;
           align-items: center;
-          justify-content: space-around;
-          padding: 4px 0;
+          justify-content: center;
+          gap: 6px;
+          padding: 4px 8px;
+          background: rgba(13, 15, 17, 0.75);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 24px;
+          box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7);
+          z-index: 10;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        #localTile:hover .media-controls-bar,
+        #localTile:focus-within .media-controls-bar,
+        .media-controls-bar:hover {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateX(-50%) translateY(0);
+        }
+
+        .video-grid.layout-pip .media-controls-bar {
+          bottom: 5px;
+          padding: 3px 5px;
+          gap: 4px;
         }
 
         .media-btn {
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          position: relative;
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.16);
           color: #FFF;
-          width: 36px;
-          height: 36px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          transition: all 0.15s;
+          transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease, color 0.2s ease;
+          flex-shrink: 0;
+          outline: none;
+        }
+
+        .video-grid.layout-pip .media-btn {
+          width: 26px;
+          height: 26px;
+        }
+
+        .video-grid.layout-pip .media-btn svg {
+          width: 14px;
+          height: 14px;
         }
 
         .media-btn:hover {
-          background: rgba(255, 255, 255, 0.18);
-          transform: scale(1.05);
+          background: rgba(255, 255, 255, 0.24);
+          border-color: rgba(255, 255, 255, 0.3);
+          transform: scale(1.1);
         }
 
+        .media-btn:active {
+          transform: scale(0.92);
+        }
+
+        /* Muted / Video Stopped State */
         .media-btn.disabled {
+          background: rgba(239, 68, 68, 0.88);
+          border-color: rgba(239, 68, 68, 0.95);
+          box-shadow: 0 0 10px rgba(239, 68, 68, 0.45);
+          color: #FFF;
+        }
+
+        .media-btn.disabled:hover {
           background: #EF4444;
-          border-color: #EF4444;
+          box-shadow: 0 0 14px rgba(239, 68, 68, 0.65);
+        }
+
+        /* Animated Cross / Diagonal Slash for Mute & Camera Off */
+        .slash-line {
+          stroke: #FFF;
+          stroke-dasharray: 28;
+          stroke-dashoffset: 28;
+          transition: stroke-dashoffset 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .media-btn.disabled .slash-line {
+          stroke-dashoffset: 0;
+        }
+
+        /* Click Pulse Bounce Animation */
+        @keyframes btnPulse {
+          0% { transform: scale(1); }
+          40% { transform: scale(0.85); }
+          100% { transform: scale(1.1); }
+        }
+
+        .media-btn.pulse {
+          animation: btnPulse 0.26s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* Resync Refresh Spin Animation */
+        @keyframes spinRefresh {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .media-btn.spinning svg {
+          animation: spinRefresh 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .media-btn.spinning {
+          border-color: #A8D84A;
+          color: #A8D84A;
+          box-shadow: 0 0 12px rgba(168, 216, 74, 0.5);
         }
 
         /* Sync Controls */
@@ -1107,6 +1227,38 @@ class FlixPartySidebar {
                 <span>Camera Off</span>
               </div>
               <div class="tile-label" id="localLabel" style="cursor: pointer;" title="Click to change your display name">${this.username} ✎</div>
+              
+              <!-- Indicator when mic is muted (visible even when not hovering) -->
+              <div class="local-mute-badge" id="localMuteBadge" style="display:none;" title="Microphone muted">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#FFF" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line><line x1="2" y1="2" x2="22" y2="22"></line></svg>
+              </div>
+
+              <!-- In-Video Transparent Media Controls (Appears on hover to save vertical space) -->
+              <div class="media-controls-bar" id="mediaControlsBar">
+                <button type="button" class="media-btn" id="micBtn" title="Toggle Microphone">
+                  <svg class="media-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                    <line class="slash-line" x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></line>
+                  </svg>
+                </button>
+                <button type="button" class="media-btn" id="cameraBtn" title="Toggle Camera">
+                  <svg class="media-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 7l-7 5 7 5V7z"></path>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    <line class="slash-line" x1="3" y1="3" x2="21" y2="21" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></line>
+                  </svg>
+                </button>
+                <button type="button" class="media-btn" id="forceSyncBtn" title="Resync Playback Immediately">
+                  <svg class="media-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <!-- Remote Friend Video -->
@@ -1120,19 +1272,6 @@ class FlixPartySidebar {
               </div>
               <div class="tile-label" id="remoteLabel">${this.remoteUsername || 'Friend'}</div>
             </div>
-          </div>
-
-          <!-- Video & Mic Control Buttons -->
-          <div class="media-controls-bar">
-            <button class="media-btn" id="micBtn" title="Toggle Microphone">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-            </button>
-            <button class="media-btn" id="cameraBtn" title="Toggle Camera">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
-            </button>
-            <button class="media-btn" id="forceSyncBtn" title="Resync Playback Immediately">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-            </button>
           </div>
         </div>
 
@@ -1287,32 +1426,52 @@ class FlixPartySidebar {
       this.showToast('Audio unmuted!');
     });
 
-    // Media Controls
+    // Media Controls (In-Video Floating Controls)
     const micBtn = $('micBtn');
-    micBtn.addEventListener('click', () => {
-      this.unlockAudio();
-      const isActive = this.onToggleMic();
-      micBtn.classList.toggle('disabled', !isActive);
-      micBtn.style.background = isActive ? '' : '#EF4444';
-      this.showToast(isActive ? 'Microphone unmuted' : 'Microphone muted');
-    });
+    const localMuteBadge = $('localMuteBadge');
+    if (micBtn) {
+      micBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.unlockAudio();
+        const isActive = this.onToggleMic();
+        micBtn.classList.toggle('disabled', !isActive);
+        micBtn.classList.add('pulse');
+        setTimeout(() => micBtn.classList.remove('pulse'), 300);
+        if (localMuteBadge) {
+          localMuteBadge.style.display = isActive ? 'none' : 'flex';
+        }
+        this.showToast(isActive ? 'Microphone unmuted' : 'Microphone muted');
+      });
+    }
 
     const cameraBtn = $('cameraBtn');
-    cameraBtn.addEventListener('click', () => {
-      this.unlockAudio();
-      const isActive = this.onToggleVideo();
-      cameraBtn.classList.toggle('disabled', !isActive);
-      cameraBtn.style.background = isActive ? '' : '#EF4444';
-      $('localPlaceholder').style.display = isActive ? 'none' : 'flex';
-      $('localVideo').style.display = isActive ? 'block' : 'none';
-      this.showToast(isActive ? 'Camera enabled' : 'Camera disabled');
-    });
+    if (cameraBtn) {
+      cameraBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.unlockAudio();
+        const isActive = this.onToggleVideo();
+        cameraBtn.classList.toggle('disabled', !isActive);
+        cameraBtn.classList.add('pulse');
+        setTimeout(() => cameraBtn.classList.remove('pulse'), 300);
+        const placeholder = $('localPlaceholder');
+        const video = $('localVideo');
+        if (placeholder) placeholder.style.display = isActive ? 'none' : 'flex';
+        if (video) video.style.display = isActive ? 'block' : 'none';
+        this.showToast(isActive ? 'Camera enabled' : 'Camera disabled');
+      });
+    }
 
-    // Force Sync
-    $('forceSyncBtn').addEventListener('click', () => {
-      this.onForceSync();
-      this.showToast('Resynchronizing playback...');
-    });
+    // Force Sync (Refresh button with 360 spin animation)
+    const forceSyncBtn = $('forceSyncBtn');
+    if (forceSyncBtn) {
+      forceSyncBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        forceSyncBtn.classList.add('spinning');
+        setTimeout(() => forceSyncBtn.classList.remove('spinning'), 650);
+        this.onForceSync();
+        this.showToast('Resynchronizing playback...');
+      });
+    }
 
     // Control Mode Change
     $('controlModeSelect').addEventListener('change', (e) => {
