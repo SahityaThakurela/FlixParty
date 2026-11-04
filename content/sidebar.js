@@ -83,16 +83,16 @@ class FlixPartySidebar {
           top: 0;
           right: 0;
           bottom: 0;
-          width: 390px;
+          width: 385px;
           max-width: 95vw;
-          background: rgba(13, 16, 23, 0.94);
-          backdrop-filter: blur(28px) saturate(180%);
-          -webkit-backdrop-filter: blur(28px) saturate(180%);
-          border-left: 1px solid rgba(255, 255, 255, 0.08);
-          box-shadow: -15px 0 45px rgba(0, 0, 0, 0.85);
+          background: #121418;
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border-left: 1px solid rgba(255, 255, 255, 0.07);
+          box-shadow: -10px 0 35px rgba(0, 0, 0, 0.7);
           display: flex;
           flex-direction: column;
-          color: #F8FAFC;
+          color: #F0F2F5;
           transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
           z-index: 2147483647;
         }
@@ -107,11 +107,10 @@ class FlixPartySidebar {
           position: fixed;
           top: 80px;
           right: 0;
-          background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
-          color: #FFF;
-          padding: 10px 16px;
+          background: #A8D84A;
+          color: #1A1A1A;
+          padding: 10px 14px;
           border-radius: 24px 0 0 24px;
-          box-shadow: -4px 6px 20px rgba(99, 102, 241, 0.4);
           cursor: pointer;
           display: none;
           align-items: center;
@@ -123,9 +122,8 @@ class FlixPartySidebar {
         }
 
         .flix-floating-pill:hover {
-          padding-left: 20px;
-          background: linear-gradient(135deg, #818CF8 0%, #6366F1 100%);
-          box-shadow: -6px 8px 24px rgba(99, 102, 241, 0.55);
+          padding-left: 18px;
+          background: #BEEB62;
         }
 
         .flix-floating-pill.active {
@@ -133,11 +131,11 @@ class FlixPartySidebar {
         }
 
         .pill-badge {
-          background: #FFF;
-          color: #4F46E5;
+          background: #1A1A1A;
+          color: #A8D84A;
           font-size: 11px;
           font-weight: 700;
-          padding: 2px 7px;
+          padding: 2px 6px;
           border-radius: 10px;
         }
 
@@ -147,7 +145,7 @@ class FlixPartySidebar {
           align-items: center;
           justify-content: space-between;
           padding: 8px 12px;
-          background: rgba(16, 20, 29, 0.96);
+          background: #0D0F11;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           gap: 6px;
         }
@@ -155,29 +153,28 @@ class FlixPartySidebar {
         .flix-brand {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 7px;
           flex-shrink: 0;
         }
 
         .flix-logo-icon {
-          width: 24px;
-          height: 24px;
-          background: linear-gradient(135deg, #E50914 0%, #FF3366 100%);
-          border-radius: 6px;
+          width: 22px;
+          height: 22px;
+          background: #A8D84A;
+          border-radius: 5px;
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 900;
           font-size: 12px;
-          color: #FFF;
-          box-shadow: 0 2px 8px rgba(229, 9, 20, 0.4);
+          color: #1A1A1A;
         }
 
         .flix-title {
           font-size: 15px;
           font-weight: 700;
           letter-spacing: 0.3px;
-          background: linear-gradient(135deg, #FFFFFF 40%, #A5B4FC 100%);
+          background: linear-gradient(90deg, #FFFFFF, #A8D84A);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
         }
@@ -193,11 +190,11 @@ class FlixPartySidebar {
           align-items: center;
           gap: 5px;
           font-size: 11px;
-          color: #94A3B8;
-          background: rgba(255, 255, 255, 0.05);
+          color: #A3A3A3;
+          background: rgba(255, 255, 255, 0.06);
           padding: 3px 8px;
           border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.05);
           transition: background 0.15s, color 0.15s;
           white-space: nowrap;
           cursor: pointer;
@@ -256,7 +253,7 @@ class FlixPartySidebar {
           align-items: center;
           justify-content: space-between;
           padding: 6px 10px;
-          background: rgba(12, 12, 12, 0.85);
+          background: #0F1115;
           border-bottom: 1px solid rgba(255, 255, 255, 0.06);
           font-size: 11px;
         }
@@ -310,17 +307,16 @@ class FlixPartySidebar {
         }
 
         .layout-btn.active {
-          background: linear-gradient(135deg, #6366F1, #4F46E5);
-          color: #FFF;
+          background: #A8D84A;
+          color: #1A1A1A;
           font-weight: 600;
-          box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);
         }
 
         /* Video Call Area */
         .flix-video-section {
           padding: 8px 10px 10px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(14, 17, 26, 0.5);
+          background: rgba(13, 15, 17, 0.5);
         }
 
         .video-grid {
@@ -383,17 +379,16 @@ class FlixPartySidebar {
 
         .video-tile {
           position: relative;
-          background: #07090E;
-          border-radius: 10px;
+          background: #000;
+          border-radius: 8px;
           overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .video-tile.speaking {
-          border: 2px solid #10B981;
-          box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+          border: 2px solid #A8D84A;
+          box-shadow: 0 0 14px rgba(168, 216, 74, 0.4);
         }
 
         .video-tile video {
@@ -410,45 +405,42 @@ class FlixPartySidebar {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          background: #111520;
-          color: #64748B;
+          background: #1E1E1E;
+          color: #777;
           font-size: 12px;
-          gap: 5px;
+          gap: 4px;
         }
 
         .tile-label {
           position: absolute;
           bottom: 6px;
           left: 6px;
-          background: rgba(10, 14, 23, 0.8);
-          backdrop-filter: blur(6px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          padding: 2.5px 7px;
-          border-radius: 5px;
+          background: rgba(0, 0, 0, 0.65);
+          padding: 2px 6px;
+          border-radius: 4px;
           font-size: 11px;
           font-weight: 500;
-          color: #F1F5F9;
         }
 
         .audio-unmute-badge {
           position: absolute;
           top: 6px;
           right: 6px;
-          background: linear-gradient(135deg, #6366F1, #4F46E5);
-          color: #FFF;
+          background: #A8D84A;
+          color: #1A1A1A;
           border: none;
-          padding: 3.5px 9px;
+          padding: 3px 8px;
           border-radius: 12px;
           font-size: 10px;
           font-weight: 600;
           cursor: pointer;
           z-index: 10;
-          box-shadow: 0 2px 10px rgba(99, 102, 241, 0.45);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
           transition: transform 0.15s, background 0.15s;
         }
 
         .audio-unmute-badge:hover {
-          background: linear-gradient(135deg, #818CF8, #6366F1);
+          background: #BEEB62;
           transform: scale(1.06);
         }
 
@@ -487,7 +479,7 @@ class FlixPartySidebar {
         /* Sync Controls */
         .flix-sync-bar {
           padding: 8px 14px;
-          background: rgba(0, 0, 0, 0.35);
+          background: #0F1115;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -512,9 +504,9 @@ class FlixPartySidebar {
         }
 
         .force-sync-btn {
-          background: rgba(229, 9, 20, 0.15);
-          border: 1px solid rgba(229, 9, 20, 0.4);
-          color: #FF7B7B;
+          background: rgba(168, 216, 74, 0.1);
+          border: 1px solid rgba(168, 216, 74, 0.35);
+          color: #A8D84A;
           padding: 3px 8px;
           border-radius: 4px;
           cursor: pointer;
@@ -523,8 +515,8 @@ class FlixPartySidebar {
         }
 
         .force-sync-btn:hover {
-          background: #6366F1;
-          color: #FFF;
+          background: #A8D84A;
+          color: #1A1A1A;
         }
 
         /* Chat Section */
@@ -533,18 +525,18 @@ class FlixPartySidebar {
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          background: linear-gradient(180deg, rgba(14, 18, 27, 0.92) 0%, rgba(10, 13, 20, 0.98) 100%);
+          background: #0D0F11;
         }
 
         .chat-messages {
           flex: 1;
           overflow-y: auto;
-          padding: 14px 14px 10px;
+          padding: 12px;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 10px;
           scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+          scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
         }
 
         .chat-messages::-webkit-scrollbar {
@@ -552,14 +544,14 @@ class FlixPartySidebar {
         }
 
         .chat-messages::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.18);
+          background: rgba(255, 255, 255, 0.2);
           border-radius: 4px;
         }
 
         .chat-msg {
           display: flex;
           flex-direction: column;
-          max-width: 86%;
+          max-width: 88%;
           position: relative;
         }
 
@@ -574,9 +566,9 @@ class FlixPartySidebar {
         }
 
         .chat-msg-header {
-          font-size: 10.5px;
-          color: #94A3B8;
-          margin-bottom: 4px;
+          font-size: 10px;
+          color: #888;
+          margin-bottom: 3px;
           padding: 0 4px;
           display: flex;
           align-items: center;
@@ -589,24 +581,23 @@ class FlixPartySidebar {
 
         .chat-msg-sender {
           font-weight: 600;
-          color: #38BDF8;
-          letter-spacing: 0.2px;
+          color: #AAA;
         }
 
         .chat-msg.self .chat-msg-sender {
-          color: #A5B4FC;
+          color: #A8D84A;
         }
 
         .chat-msg-time {
-          font-size: 9.5px;
-          color: #64748B;
+          font-size: 9px;
+          color: #666;
           font-weight: normal;
         }
 
         .chat-bubble-container {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
           position: relative;
           max-width: 100%;
         }
@@ -617,17 +608,17 @@ class FlixPartySidebar {
 
         .msg-reply-btn {
           background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          color: #94A3B8;
-          width: 24px;
-          height: 24px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #A3A3A3;
+          width: 22px;
+          height: 22px;
           border-radius: 50%;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
           opacity: 0;
-          transition: all 0.18s ease;
+          transition: all 0.15s ease;
           flex-shrink: 0;
         }
 
@@ -636,54 +627,48 @@ class FlixPartySidebar {
         }
 
         .msg-reply-btn:hover {
-          background: #6366F1;
-          color: #FFF;
-          border-color: #6366F1;
-          transform: scale(1.1);
-          box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+          background: #A8D84A;
+          color: #1A1A1A;
+          border-color: #A8D84A;
+          transform: scale(1.12);
         }
 
         .chat-bubble {
-          padding: 9px 13px;
-          font-size: 13.5px;
+          padding: 10px 14px;
+          border-radius: 18px;
+          font-size: 13px;
           line-height: 1.45;
           word-break: break-word;
           user-select: text;
-          letter-spacing: 0.15px;
         }
 
         .chat-msg.self .chat-bubble {
-          background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
-          color: #FFFFFF;
-          border-radius: 18px 18px 3px 18px;
-          box-shadow: 0 3px 12px rgba(79, 70, 229, 0.3);
+          background: #A8D84A;
+          color: #1A1A1A;
+          border-radius: 18px 18px 4px 18px;
+          box-shadow: 0 2px 8px rgba(168, 216, 74, 0.2);
         }
 
         .chat-msg.remote .chat-bubble {
-          background: rgba(255, 255, 255, 0.08);
-          color: #F8FAFC;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 18px 18px 18px 3px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+          background: #242830;
+          color: #F0F2F5;
+          border-radius: 18px 18px 18px 4px;
         }
 
         /* Quoted message inside bubble (WhatsApp style tag) */
         .chat-reply-quote {
           display: flex;
-          border-radius: 8px;
+          background: #0F1115;
+          border-radius: 6px;
           overflow: hidden;
           margin-bottom: 6px;
+          border-left: 3px solid #A8D84A;
           user-select: none;
         }
 
         .chat-msg.self .chat-reply-quote {
-          background: rgba(0, 0, 0, 0.28);
-          border-left: 3px solid #C7D2FE;
-        }
-
-        .chat-msg.remote .chat-reply-quote {
-          background: rgba(0, 0, 0, 0.35);
-          border-left: 3px solid #38BDF8;
+          background: rgba(0, 0, 0, 0.25);
+          border-left-color: #FFFFFF;
         }
 
         .reply-quote-body {
@@ -697,26 +682,22 @@ class FlixPartySidebar {
         .reply-quote-sender {
           font-weight: 700;
           font-size: 10.5px;
-          color: #38BDF8;
+          color: #9BA3AF;
           line-height: 1.2;
         }
 
         .chat-msg.self .reply-quote-sender {
-          color: #E0E7FF;
+          color: #FFF;
         }
 
         .reply-quote-text {
           font-size: 11px;
-          color: #94A3B8;
+          color: #DDD;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
           max-width: 220px;
           line-height: 1.25;
-        }
-
-        .chat-msg.self .reply-quote-text {
-          color: #E0E7FF;
         }
 
         /* Large Emojis in Chat (when message is emoji-only) */
@@ -726,7 +707,6 @@ class FlixPartySidebar {
           line-height: 1.15 !important;
           box-shadow: none !important;
           border-radius: 0 !important;
-          border: none !important;
         }
 
         .chat-msg .chat-bubble.single-emoji .chat-bubble-text {
@@ -750,16 +730,12 @@ class FlixPartySidebar {
         .chat-system-log {
           align-self: center;
           font-size: 11px;
-          color: #CBD5E1;
-          background: rgba(30, 36, 51, 0.7);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(8px);
-          padding: 5px 12px;
-          border-radius: 14px;
+          color: #999;
+          background: rgba(255, 255, 255, 0.05);
+          padding: 4px 10px;
+          border-radius: 10px;
           text-align: center;
           max-width: 90%;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-          line-height: 1.35;
         }
 
         /* Emoji Reaction Quick Bar */
@@ -768,7 +744,7 @@ class FlixPartySidebar {
           align-items: center;
           justify-content: space-around;
           padding: 7px 12px;
-          background: rgba(22, 22, 22, 0.85);
+          background: #121418;
           border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
 
@@ -811,7 +787,7 @@ class FlixPartySidebar {
 
         /* Full Emoji Picker Panel */
         .full-emoji-picker {
-          background: rgba(20, 20, 20, 0.98);
+          background: #121418;
           border-top: 1px solid rgba(255, 255, 255, 0.1);
           display: flex;
           flex-direction: column;
@@ -831,7 +807,7 @@ class FlixPartySidebar {
           justify-content: space-between;
           padding: 5px 8px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(14, 14, 14, 0.9);
+          background: rgba(13, 15, 17, 0.9);
         }
 
         .emoji-picker-tabs {
@@ -856,8 +832,8 @@ class FlixPartySidebar {
         }
 
         .emoji-tab-btn.active {
-          background: rgba(99, 102, 241, 0.22);
-          box-shadow: inset 0 -2px 0 #6366F1;
+          background: rgba(168, 216, 74, 0.2);
+          box-shadow: inset 0 -2px 0 #A8D84A;
         }
 
         .emoji-picker-close-btn {
@@ -936,10 +912,10 @@ class FlixPartySidebar {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 7px 14px;
-          background: rgba(20, 24, 35, 0.98);
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-          border-left: 3px solid #6366F1;
+          padding: 6px 12px;
+          background: #1A1C22;
+          border-top: 1px solid rgba(255, 255, 255, 0.07);
+          border-left: 3px solid #A8D84A;
           gap: 8px;
           animation: slideUpReply 0.18s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -960,13 +936,13 @@ class FlixPartySidebar {
         .reply-preview-sender {
           font-size: 11px;
           font-weight: 700;
-          color: #A5B4FC;
+          color: #A8D84A;
           line-height: 1.2;
         }
 
         .reply-preview-text {
           font-size: 11px;
-          color: #94A3B8;
+          color: #AAA;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -995,57 +971,49 @@ class FlixPartySidebar {
 
         /* Chat Input */
         .chat-input-bar {
-          padding: 10px 14px;
+          padding: 10px 12px;
           display: flex;
           align-items: center;
           gap: 8px;
-          background: rgba(15, 18, 25, 0.98);
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          background: #121418;
+          border-top: 1px solid rgba(255, 255, 255, 0.07);
         }
 
         .chat-input {
           flex: 1;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          border-radius: 20px;
-          padding: 9px 15px;
-          color: #F8FAFC;
-          font-size: 13.5px;
+          background: #1A1C22;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 18px;
+          padding: 8px 14px;
+          color: #F0F2F5;
+          font-size: 13px;
           outline: none;
           user-select: text;
-          transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
-        }
-
-        .chat-input::placeholder {
-          color: #64748B;
         }
 
         .chat-input:focus {
-          border-color: #6366F1;
-          background: rgba(255, 255, 255, 0.09);
-          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+          border-color: #A8D84A;
+          background: #1E2126;
+          box-shadow: 0 0 0 3px rgba(168, 216, 74, 0.15);
         }
 
         .chat-send-btn {
-          background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
+          background: #A8D84A;
           border: none;
           width: 36px;
           height: 36px;
           border-radius: 50%;
-          color: #FFF;
+          color: #1A1A1A;
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 3px 12px rgba(99, 102, 241, 0.35);
-          transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
-          flex-shrink: 0;
+          transition: background 0.15s, transform 0.1s;
         }
 
         .chat-send-btn:hover {
-          background: linear-gradient(135deg, #818CF8 0%, #6366F1 100%);
-          transform: scale(1.08);
-          box-shadow: 0 5px 16px rgba(99, 102, 241, 0.5);
+          background: #BEEB62;
+          transform: scale(1.05);
         }
 
         /* Toast notification inside video screen */
@@ -1054,15 +1022,13 @@ class FlixPartySidebar {
           bottom: 40px;
           left: 50%;
           transform: translateX(-50%);
-          background: rgba(15, 18, 26, 0.94);
-          backdrop-filter: blur(14px);
-          border: 1px solid rgba(99, 102, 241, 0.45);
-          color: #F8FAFC;
-          padding: 9px 20px;
-          border-radius: 24px;
+          background: #1A1C22;
+          border: 1px solid rgba(168, 216, 74, 0.35);
+          color: #F0F2F5;
+          padding: 8px 18px;
+          border-radius: 20px;
           font-size: 13px;
-          font-weight: 500;
-          box-shadow: 0 6px 24px rgba(0,0,0,0.7), 0 0 16px rgba(99, 102, 241, 0.25);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.8);
           z-index: 2147483647;
           pointer-events: none;
           opacity: 0;
